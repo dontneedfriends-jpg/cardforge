@@ -1,0 +1,242 @@
+:root {
+  /* Mica Material Tokens - Windows 11 Inspired */
+  
+  /* Base Background - используем системный акцент с blur */
+  --mica-base: #202020;
+  --mica-base-active: #1c1c1c;
+  --mica-base-inactive: #1e1e1e;
+  
+  /* Surface Layers - разные уровни elevation */
+  --mica-layer-0: rgba(255, 255, 255, 0.0);
+  --mica-layer-1: rgba(255, 255, 255, 0.05);
+  --mica-layer-2: rgba(255, 255, 255, 0.10);
+  --mica-layer-3: rgba(255, 255, 255, 0.15);
+  --mica-layer-4: rgba(255, 255, 255, 0.20);
+  
+  /* Stroke/Borders */
+  --mica-stroke: rgba(255, 255, 255, 0.08);
+  --mica-stroke-strong: rgba(255, 255, 255, 0.12);
+  --mica-stroke-subtle: rgba(255, 255, 255, 0.04);
+  
+  /* Accent Colors */
+  --mica-accent: #60cdff;
+  --mica-accent-secondary: rgba(96, 205, 255, 0.15);
+  --mica-accent-tertiary: rgba(96, 205, 255, 0.08);
+  
+  /* Text Colors */
+  --mica-text-primary: #ffffff;
+  --mica-text-secondary: rgba(255, 255, 255, 0.65);
+  --mica-text-tertiary: rgba(255, 255, 255, 0.40);
+  --mica-text-disabled: rgba(255, 255, 255, 0.30);
+  
+  /* Status Colors */
+  --mica-error: #ff99a4;
+  --mica-success: #6ccb5f;
+  --mica-warning: #fce100;
+  
+  /* Spacing */
+  --mica-radius-small: 4px;
+  --mica-radius-default: 8px;
+  --mica-radius-large: 12px;
+  --mica-radius-xlarge: 16px;
+  
+  /* Shadows - очень субтильные для Mica */
+  --mica-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --mica-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --mica-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.30);
+  
+  /* Fluent UI Overrides для Mica */
+  --colorNeutralBackground1: var(--mica-layer-0) !important;
+  --colorNeutralBackground2: var(--mica-layer-1) !important;
+  --colorNeutralBackground3: var(--mica-layer-2) !important;
+  --colorNeutralBackground4: var(--mica-layer-3) !important;
+  --colorNeutralStroke1: var(--mica-stroke) !important;
+  --colorNeutralStroke2: var(--mica-stroke-strong) !important;
+  --colorNeutralStroke3: var(--mica-stroke-subtle) !important;
+  --colorNeutralForeground1: var(--mica-text-primary) !important;
+  --colorNeutralForeground2: var(--mica-text-secondary) !important;
+  --colorNeutralForeground3: var(--mica-text-tertiary) !important;
+  --colorBrandBackground: var(--mica-accent) !important;
+  --colorBrandBackgroundHover: rgba(96, 205, 255, 0.8) !important;
+  --colorBrandForeground1: var(--mica-base-active) !important;
+  --colorBrandStroke1: var(--mica-accent) !important;
+  --colorPaletteRedBackground3: var(--mica-error) !important;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--mica-base-active);
+  color: var(--mica-text-primary);
+}
+
+/* Mica Backdrop - основной эффект */
+.mica-backdrop {
+  background: linear-gradient(
+    135deg,
+    rgba(32, 32, 32, 0.85) 0%,
+    rgba(28, 28, 28, 0.90) 50%,
+    rgba(30, 30, 30, 0.85) 100%
+  );
+  backdrop-filter: blur(100px) saturate(150%);
+  -webkit-backdrop-filter: blur(100px) saturate(150%);
+}
+
+.mica-surface {
+  background: var(--mica-layer-1);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--mica-stroke);
+  border-radius: var(--mica-radius-default);
+}
+
+.mica-surface-elevated {
+  background: var(--mica-layer-2);
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  border: 1px solid var(--mica-stroke-strong);
+  border-radius: var(--mica-radius-large);
+  box-shadow: var(--mica-shadow-md);
+}
+
+.mica-card {
+  background: var(--mica-layer-2);
+  border: 1px solid var(--mica-stroke);
+  border-radius: var(--mica-radius-large);
+  transition: all 0.2s ease;
+}
+
+.mica-card:hover {
+  background: var(--mica-layer-3);
+  border-color: var(--mica-stroke-strong);
+}
+
+.mica-input {
+  background: var(--mica-layer-1);
+  border: 1px solid var(--mica-stroke);
+  border-radius: var(--mica-radius-small);
+  color: var(--mica-text-primary);
+  transition: all 0.15s ease;
+}
+
+.mica-input:hover {
+  border-color: var(--mica-stroke-strong);
+}
+
+.mica-input:focus {
+  border-color: var(--mica-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--mica-accent-tertiary);
+}
+
+.mica-button {
+  background: var(--mica-layer-2);
+  border: 1px solid var(--mica-stroke);
+  border-radius: var(--mica-radius-small);
+  color: var(--mica-text-primary);
+  transition: all 0.15s ease;
+}
+
+.mica-button:hover {
+  background: var(--mica-layer-3);
+  border-color: var(--mica-stroke-strong);
+}
+
+.mica-button-primary {
+  background: var(--mica-accent);
+  border: none;
+  color: var(--mica-base-active);
+  font-weight: 600;
+}
+
+.mica-button-primary:hover {
+  background: rgba(96, 205, 255, 0.85);
+  box-shadow: 0 0 16px rgba(96, 205, 255, 0.2);
+}
+
+.mica-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--mica-stroke) 20%,
+    var(--mica-stroke) 80%,
+    transparent 100%
+  );
+}
+
+.mica-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.mica-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mica-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.mica-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Fluent UI Overrides */
+.fui-Button {
+  border-radius: var(--mica-radius-small) !important;
+}
+
+.fui-Input, .fui-Dropdown, .fui-SpinButton {
+  border-radius: var(--mica-radius-small) !important;
+}
+
+.fui-Card {
+  border-radius: var(--mica-radius-large) !important;
+  border: 1px solid var(--mica-stroke) !important;
+}
+
+.fui-DialogSurface {
+  background: var(--mica-layer-3) !important;
+  backdrop-filter: blur(80px) !important;
+  border: 1px solid var(--mica-stroke-strong) !important;
+  border-radius: var(--mica-radius-xlarge) !important;
+  box-shadow: var(--mica-shadow-lg) !important;
+}
+
+.fui-MenuPopover {
+  background: var(--mica-layer-3) !important;
+  backdrop-filter: blur(60px) !important;
+  border: 1px solid var(--mica-stroke-strong) !important;
+  border-radius: var(--mica-radius-large) !important;
+  box-shadow: var(--mica-shadow-md) !important;
+}
+
+.fui-Tooltip {
+  background: var(--mica-layer-4) !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: var(--mica-radius-small) !important;
+}
+
+/* Monaco Editor overrides for Mica */
+.monaco-editor {
+  border-radius: var(--mica-radius-small) !important;
+}
+
+.monaco-editor .overflow-guard {
+  border-radius: var(--mica-radius-small) !important;
+}
