@@ -1618,7 +1618,7 @@ export const cardTemplates: CardTemplate[] = [
     name: 'Board Game Tile',
     description: 'Square terrain tile for board games - hex-style with resources',
     cardSize: { widthMm: 70, heightMm: 70, bleedMm: 3 },
-    html: `<div class="tile {{terrain}}">
+    html: `<div class="card tile {{terrain}}">
   <div class="tile-overlay"></div>
   <div class="tile-content">
     <div class="tile-icon">{{icon}}</div>
@@ -1784,12 +1784,9 @@ export const cardTemplates: CardTemplate[] = [
     <span class="attack-name">{{attackName}}</span>
     <span class="attack-dmg">{{damage}}</span>
   </div>
-    <span class="tcg-retreat">
-      Retreat: {{retreat}}
-    </span>
-    <span class="tcg-weakness">
-      Weak: {{weakness}}
-    </span>
+  <div class="tcg-footer">
+    <span class="tcg-retreat">Retreat: {{retreat}}</span>
+    <span class="tcg-weakness">Weak: {{weakness}}</span>
   </div>
 </div>`,
     css: `

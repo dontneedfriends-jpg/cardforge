@@ -20,6 +20,8 @@ export interface CanvasElement {
 interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
+  past: CanvasElement[][];
+  future: CanvasElement[][];
 }
 
 interface CanvasActions {
@@ -34,20 +36,32 @@ interface CanvasActions {
   duplicateElement: (id: string) => void;
   setElements: (elements: CanvasElement[]) => void;
   clearCanvas: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 type CanvasStore = CanvasState & CanvasActions;
 
 let idCounter = 0;
 const generateId = () => `el_${Date.now()}_${++idCounter}`;
+const MAX_HISTORY = 50;
+
+function snapshot(elements: CanvasElement[]): CanvasElement[] {
+  return JSON.parse(JSON.stringify(elements));
+}
 
 export const useCanvasStore = create<CanvasStore>()(
   immer((set) => ({
     elements: [],
     selectedId: null,
+    past: [],
+    future: [],
 
     addElement: (element) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const newElement: CanvasElement = {
           ...element,
           id: generateId(),
@@ -60,6 +74,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     updateElement: (id, updates) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const el = state.elements.find((e) => e.id === id);
         if (el) {
           Object.assign(el, updates);
@@ -69,6 +86,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     updateElementProps: (id, props) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const el = state.elements.find((e) => e.id === id);
         if (el) {
           Object.assign(el.props, props);
@@ -78,6 +98,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     deleteElement: (id) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         state.elements = state.elements.filter((e) => e.id !== id);
         if (state.selectedId === id) {
           state.selectedId = null;
@@ -93,6 +116,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     moveElement: (id, x, y) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const el = state.elements.find((e) => e.id === id);
         if (el) {
           el.x = x;
@@ -103,6 +129,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     resizeElement: (id, width, height) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const el = state.elements.find((e) => e.id === id);
         if (el) {
           el.width = width;
@@ -113,6 +142,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     reorderElement: (id, direction) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const idx = state.elements.findIndex((e) => e.id === id);
         if (idx === -1) return;
 
@@ -136,6 +168,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
     duplicateElement: (id) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         const el = state.elements.find((e) => e.id === id);
         if (el) {
           const newEl: CanvasElement = {
@@ -153,14 +188,38 @@ export const useCanvasStore = create<CanvasStore>()(
 
     setElements: (elements) => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         state.elements = elements;
       });
     },
 
     clearCanvas: () => {
       set((state) => {
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.future = [];
         state.elements = [];
         state.selectedId = null;
+      });
+    },
+
+    undo: () => {
+      set((state) => {
+        if (state.past.length === 0) return;
+        state.future.push(snapshot(state.elements));
+        if (state.future.length > MAX_HISTORY) state.future.shift();
+        state.elements = state.past.pop()!;
+      });
+    },
+
+    redo: () => {
+      set((state) => {
+        if (state.future.length === 0) return;
+        state.past.push(snapshot(state.elements));
+        if (state.past.length > MAX_HISTORY) state.past.shift();
+        state.elements = state.future.pop()!;
       });
     },
   }))

@@ -1,39 +1,26 @@
 import type { CellValue } from '../../shared/types/project';
 import Handlebars from 'handlebars';
-import { convertFileSrc } from '@tauri-apps/api/core';
 
 export function renderCardBody(
   html: string,
   css: string,
-  row: Record<string, CellValue>,
-  projectPath?: string
+  row: Record<string, CellValue>
 ): { body: string; css: string } {
   try {
-    let processedRow = { ...row };
-    if (projectPath) {
-      for (const [key, value] of Object.entries(processedRow)) {
-        if (typeof value === 'string' && value.startsWith('assets/')) {
-          const fullPath = projectPath.replace(/\\/g, '/') + '/' + value;
-          processedRow[key] = convertFileSrc(fullPath);
-        }
-      }
-    }
-
     const template = Handlebars.compile(html);
-    const body = template(processedRow);
+    const body = template(row);
     return { body, css };
   } catch {
-    return { body: '<div style="color:red;padding:16px">Template error</div>', css };
+    return { body: '<div style="color:red;padding:16px">Template error</div>', css: '' };
   }
 }
 
 export function renderCardRow(
   html: string,
   css: string,
-  row: Record<string, CellValue>,
-  projectPath?: string
+  row: Record<string, CellValue>
 ): string {
-  const { body } = renderCardBody(html, css, row, projectPath);
+  const { body } = renderCardBody(html, css, row);
   return `<!DOCTYPE html>
 <html>
 <head>

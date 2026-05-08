@@ -1,8 +1,9 @@
-import type { EditorMode, CardBackDesign } from '../shared/types/project';
+import type { EditorMode, CardBackDesign, CardSize } from '../shared/types/project';
+import type { CanvasElement } from './canvasStore';
 import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
+import { useProjectStore } from './projectStore';
 import { elementsToTemplate, parseTemplateToElements } from '../features/template-editor/wysiwyg/sync';
-import type { CardSize } from '../shared/types/project';
 import { useCanvasStore } from './canvasStore';
 
 interface EditorStoreState {
@@ -14,11 +15,24 @@ interface EditorStoreState {
   currentDeckPath: string | null;
   currentCardSize: CardSize | null;
   cardBack: CardBackDesign;
-  // Защита от циклической синхронизации:
-  // 'visual' — html/css только что обновлены из canvas, CodeEditor не должен перепарсить обратно
-  // 'code'   — elements только что обновлены из кода, Canvas не должен перегенерировать html/css
-  // null     — нет активной синхронизации
   syncSource: 'visual' | 'code' | null;
+}
+
+interface EditorStoreActions {
+  setHtml: (val: string) => void;
+  setCss: (val: string) => void;
+  setActiveTab: (tab: 'html' | 'css') => void;
+  setEditorMode: (mode: EditorMode) => void;
+  setCardBack: (design: CardBackDesign) => void;
+  syncVisualToCode: (cardSize: CardSize) => void;
+  syncCodeToVisual: () => void;
+  clearSyncSource: () => void;
+  saveTemplate: () => Promise<void>;
+  saveCanvas: () => Promise<void>;
+  loadCanvas: (deckPath: string) => Promise<boolean>;
+  saveCardBack: () => Promise<void>;
+  loadTemplate: (deckPath: string) => Promise<void>;
+  loadCardBack: (deckPath: string) => Promise<void>;
 }
 
 interface EditorStoreActions {
@@ -40,15 +54,26 @@ type EditorStore = EditorStoreState & EditorStoreActions;
 
 const defaultCardBack: CardBackDesign = {
   backgroundTop: '#1a0a2e',
+  backgroundMid: '#1f1240',
   backgroundBottom: '#2a1a4e',
+  gradientAngle: 135,
   borderColor: 'rgba(255,255,255,0.1)',
   borderWidth: 2,
+  borderRadius: 8,
+  shadowColor: 'rgba(0,0,0,0.4)',
+  shadowSize: 12,
   symbol: '?',
+  symbolSet: 'none',
   symbolSize: 36,
   symbolColor: 'rgba(255,255,255,0.6)',
+  symbol2: '',
+  symbol2Size: 18,
+  symbol2Color: 'rgba(255,255,255,0.3)',
   pattern: 'stripes',
   patternColor: 'rgba(255,255,255,0.02)',
   patternOpacity: 1,
+  textureUrl: '',
+  textureOpacity: 0.3,
 };
 
 export const useEditorStore = create<EditorStore>()((set, get) => ({
@@ -101,10 +126,35 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   },
 
   saveTemplate: async () => {
-    const { currentDeckPath, html, css } = get();
+    const { currentDeckPath, html, css, editorMode } = get();
     if (!currentDeckPath) return;
     await invoke('write_template', { deckPath: currentDeckPath, html, css });
+    if (editorMode === 'visual') {
+      await get().saveCanvas();
+    }
     set({ isDirty: false });
+  },
+
+  saveCanvas: async () => {
+    const { currentDeckPath } = get();
+    if (!currentDeckPath) return;
+    const elements = useCanvasStore.getState().elements;
+    await invoke('write_canvas', {
+      deckPath: currentDeckPath,
+      content: JSON.stringify(elements),
+    });
+  },
+
+  loadCanvas: async (deckPath: string) => {
+    const content = await invoke<string>('read_canvas', { deckPath });
+    if (!content.trim()) return false;
+    try {
+      const elements: CanvasElement[] = JSON.parse(content);
+      useCanvasStore.getState().setElements(elements);
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   saveCardBack: async () => {
@@ -115,8 +165,20 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   },
 
   loadTemplate: async (deckPath: string) => {
+    const loaded = await get().loadCanvas(deckPath);
     const files = await invoke<{ html: string; css: string }>('read_template', { deckPath });
-    set({ html: files.html, css: files.css, isDirty: false, currentDeckPath: deckPath, currentCardSize: null });
+    const manifest = useProjectStore.getState().manifest;
+    const deckMeta = manifest?.decks.find(d => deckPath.includes(d.path));
+    set({
+      html: files.html,
+      css: files.css,
+      isDirty: false,
+      currentDeckPath: deckPath,
+      currentCardSize: deckMeta?.cardSize ?? null,
+    });
+    if (!loaded) {
+      get().syncCodeToVisual();
+    }
   },
 
   loadCardBack: async (deckPath: string) => {

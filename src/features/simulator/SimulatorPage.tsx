@@ -1,10 +1,11 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { Text, makeStyles } from '@fluentui/react-components';
 import { useSimulatorStore } from './simulatorStore';
 import { useDeckStore, useProjectStore, useEditorStore } from '../../store';
 import { CardTable } from './CardTable';
 import { DeckZone } from './DeckZone';
 import { renderCardRow } from '../preview/CardRenderer';
+import { injectFontCss } from '../../shared/utils/fontUtils';
 
 const useStyles = makeStyles({
   container: {
@@ -57,6 +58,15 @@ export function SimulatorPage() {
   const playArea = useSimulatorStore((s) => s.playArea);
   const discard = useSimulatorStore((s) => s.discard);
 
+  const fontCssRef = useRef('');
+  useEffect(() => {
+    if (projectPath && editorCss) {
+      injectFontCss(editorCss, projectPath).then(css => { fontCssRef.current = css; });
+    } else {
+      fontCssRef.current = '';
+    }
+  }, [editorCss, projectPath]);
+
   useEffect(() => {
     if (deckData?.rows && deckData.meta) {
       store.loadDeck(deckData.rows, deckData.meta.id);
@@ -72,9 +82,10 @@ export function SimulatorPage() {
       if (!card || !deckData) return '<html><body></body></html>';
       const row = deckData.rows[card.rowIndex];
       if (!row) return '<html><body></body></html>';
-      return renderCardRow(editorHtml, editorCss, row, projectPath ?? undefined);
+      const css = fontCssRef.current || editorCss;
+      return renderCardRow(editorHtml, css, row);
     },
-    [deck, hand, playArea, discard, deckData, editorHtml, editorCss, projectPath]
+    [deck, hand, playArea, discard, deckData, editorHtml, editorCss]
   );
 
   const cardSize = useMemo(
@@ -89,6 +100,14 @@ export function SimulatorPage() {
       row: deckData.rows[card.rowIndex] || {},
     }));
   }, [deck, deckData]);
+
+  const discardCards = useMemo(() => {
+    if (!deckData) return [];
+    return discard.map((card) => ({
+      rowIndex: card.rowIndex,
+      row: deckData.rows[card.rowIndex] || {},
+    }));
+  }, [discard, deckData]);
 
   if (!deckData || deckData.rows.length === 0) {
     return (
@@ -116,9 +135,12 @@ export function SimulatorPage() {
           cardHeightMm={cardSize.heightMm}
           onPlayCard={store.playCard}
           onFlipCard={store.flipCard}
+          onAlignCard={store.alignCard}
           onRotateCard={store.rotateCard}
           onRotateCard3d={store.rotateCard3d}
           onMoveCard={store.moveCard}
+          onDiscardCard={store.discardCard}
+          onReturnToDeck={store.returnToDeck}
           renderCardContent={renderCardContent}
           cardBackDesign={cardBackDesign}
         />
@@ -128,10 +150,12 @@ export function SimulatorPage() {
         handCount={hand.length}
         discardCount={discard.length}
         deckCards={deckCards}
+        discardCards={discardCards}
         onShuffle={store.shuffle}
         onDraw={() => store.drawCard()}
         onDrawAll={() => store.drawCards(deck.length)}
         onDrawSpecific={store.drawSpecificCard}
+        onReset={store.resetGame}
       />
     </div>
   );

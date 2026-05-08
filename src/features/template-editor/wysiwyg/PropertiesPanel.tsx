@@ -1,6 +1,11 @@
-import { Text, Input, Dropdown, Option, SpinButton, makeStyles, Label, Slider } from '@fluentui/react-components';
+import { Text, Input, Dropdown, Option, SpinButton, makeStyles, Label, Slider, Button } from '@fluentui/react-components';
 import { useCanvasStore } from '../../../store/canvasStore';
 import { useDeckStore } from '../../../store';
+import { AssetPickerDialog } from '../../assets/AssetPickerDialog';
+import { assetPathToRelative } from '../../../shared/utils/assetPath';
+import { useProjectStore } from '../../../store';
+import { listCustomFonts } from '../../../shared/utils/fontUtils';
+import { useState, useEffect } from 'react';
 
 const useStyles = makeStyles({
   panel: {
@@ -29,6 +34,13 @@ export function PropertiesPanel() {
   const elements = useCanvasStore((state) => state.elements);
   const updateElement = useCanvasStore((state) => state.updateElement);
   const updateElementProps = useCanvasStore((state) => state.updateElementProps);
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [customFonts, setCustomFonts] = useState<string[]>([]);
+  const projectPath = useProjectStore((s) => s.projectPath);
+
+  useEffect(() => {
+    if (projectPath) listCustomFonts(projectPath).then(setCustomFonts);
+  }, [projectPath]);
 
   // Используем deckData напрямую, чтобы избежать создания нового [] каждый раз
   const deckData = useDeckStore((s) => s.deckData);
@@ -169,6 +181,22 @@ export function PropertiesPanel() {
             <Option value="right">Right</Option>
           </Dropdown>
         </div>
+      </div>,
+      <div className={styles.field} key="font-family">
+        <Label size="small">Font Family</Label>
+        <Dropdown
+          value={props.fontFamily ?? 'inherit'}
+          onOptionSelect={(_e, data) => handlePropChange('fontFamily', data.optionValue === 'inherit' ? undefined : data.optionValue)}
+          size="small"
+        >
+          <Option value="inherit">(inherit)</Option>
+          <Option value="IBM Plex Sans">IBM Plex Sans</Option>
+          <Option value="IBM Plex Mono">IBM Plex Mono</Option>
+          <Option value="serif">Serif</Option>
+          <Option value="sans-serif">Sans-Serif</Option>
+          <Option value="monospace">Monospace</Option>
+          {customFonts.map(f => <Option key={f} value={f}>{f}</Option>)}
+        </Dropdown>
       </div>
     );
   }
@@ -191,16 +219,34 @@ export function PropertiesPanel() {
   if (type === 'image') {
     const columns = deckColumns;
     fields.push(
-      <div className={styles.field} key="img-src">
-        <Label size="small">Static URL</Label>
-        <Input
-          value={props.src ?? ''}
-          onChange={(_e, data) => {
-            handlePropChange('src', data.value);
+      <div className={styles.field} key="img-picker">
+        <Label size="small">Image Source</Label>
+        <div className={styles.row}>
+          <Input
+            value={props.src ?? ''}
+            onChange={(_e, data) => {
+              handlePropChange('src', data.value);
+              handlePropChange('isField', false);
+            }}
+            size="small"
+            placeholder="assets/image.png"
+            style={{ flex: 1 }}
+          />
+          <Button
+            size="small"
+            onClick={() => setAssetPickerOpen(true)}
+          >
+            Browse...
+          </Button>
+        </div>
+        <AssetPickerDialog
+          open={assetPickerOpen}
+          onOpenChange={setAssetPickerOpen}
+          onSelect={(assetPath) => {
+            handlePropChange('src', assetPathToRelative(assetPath));
             handlePropChange('isField', false);
           }}
-          size="small"
-          placeholder="assets/image.png"
+          title="Select Image Asset"
         />
       </div>,
       <div className={styles.field} key="img-field">

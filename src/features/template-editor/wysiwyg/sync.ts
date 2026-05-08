@@ -1,5 +1,6 @@
-import type { CanvasElement } from '../store/canvasStore';
-import type { CardSize } from '../shared/types/project';
+import type { CanvasElement } from '../../../store/canvasStore';
+import type { CardSize } from '../../../shared/types/project';
+import { assetPathToRelative } from '../../../shared/utils/assetPath';
 
 /**
  * Конвертирует CanvasElement[] в HTML + CSS шаблон карты
@@ -69,7 +70,9 @@ export function elementsToTemplate(
         if (p.isField && p.fieldName) {
           html += `  <img class="${safeClass}" src="{{${p.fieldName}}}" alt="" style="${inlineStyle};width:100%;height:100%;object-fit:cover" />\n`;
         } else {
-          html += `  <div class="${safeClass}" style="${inlineStyle}"><img src="${p.src || ''}" alt="" style="width:100%;height:100%;object-fit:cover" /></div>\n`;
+          // Convert any full path to assets/ relative path (Windows-safe)
+          const src = assetPathToRelative(p.src || '');
+          html += `  <div class="${safeClass}" style="${inlineStyle}"><img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover" /></div>\n`;
         }
         break;
       }

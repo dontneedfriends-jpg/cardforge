@@ -1,9 +1,10 @@
 import { Text, makeStyles, SpinButton } from '@fluentui/react-components';
 import type { SpinButtonOnChangeData } from '@fluentui/react-components';
-import { useEditorStore, useDeckStore, useProjectStore } from '../../store';
+import { useEditorStore, useDeckStore, useProjectStore, useUiStore } from '../../store';
 import { mmToPx } from '../../theme';
-import { renderCardRow } from './CardRenderer';
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { injectFontCss } from '../../shared/utils/fontUtils';
 
 const DEFAULT_CARD_WIDTH = 63;
 const DEFAULT_CARD_HEIGHT = 88;
@@ -22,8 +23,8 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    background: 'var(--mica-layer-1)',
+    borderBottom: '1px solid var(--mica-stroke)',
   },
   canvas: {
     flex: 1,
@@ -38,17 +39,16 @@ const useStyles = makeStyles({
   iframeWrap: {
     borderRadius: '12px',
     overflow: 'hidden',
-    background: '#fff',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+    boxShadow: 'var(--mica-shadow-lg)',
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     ':hover': {
       transform: 'translateY(-2px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+      boxShadow: 'var(--mica-shadow-xl)',
     },
   },
   hint: {
     marginTop: '40px',
-    color: 'rgba(255, 255, 255, 0.40)',
+    color: 'var(--mica-text-tertiary)',
     textAlign: 'center',
     fontSize: '13px',
   },
@@ -60,34 +60,99 @@ export function PreviewPanel() {
   const css = useEditorStore((s) => s.css);
   const deckData = useDeckStore((s) => s.deckData);
   const projectPath = useProjectStore((s) => s.projectPath);
+  const previewBackground = useUiStore((s) => s.previewBackground);
   const [zoom, setZoom] = useState(1);
-
-  // Render cards: if no deck data, show one empty preview
-  const rendered = useMemo(() => {
-    if (!html.trim()) return [];
-    if (!deckData || deckData.rows.length === 0) {
-      // Show one card with empty data so user can see the template
-      return [renderCardRow(html, css, {}, projectPath || undefined)];
-    }
-    return deckData.rows.map((row: Record<string, any>) => 
-      renderCardRow(html, css, row, projectPath || undefined)
-    );
-  }, [html, css, deckData, projectPath]);
-
   const [blobUrls, setBlobUrls] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const projectPathRef = useRef(projectPath);
+  projectPathRef.current = projectPath;
 
   useEffect(() => {
-    if (rendered.length === 0) {
+    if (!html.trim()) {
       setBlobUrls([]);
       return;
     }
-    const urls = rendered.map(htmlStr => URL.createObjectURL(new Blob([htmlStr], { type: 'text/html' })));
-    setBlobUrls(prevUrls => {
-      prevUrls.forEach(url => URL.revokeObjectURL(url));
-      return urls;
-    });
-    return () => { urls.forEach(url => URL.revokeObjectURL(url)); };
-  }, [rendered]);
+
+    const loadPreviews = async () => {
+      setLoading(true);
+      try {
+        const rows = (!deckData || deckData.rows.length === 0)
+          ? [{}]
+          : deckData.rows;
+
+        const fontCss = projectPathRef.current ? await injectFontCss(css, projectPathRef.current) : css;
+
+        const renderedHtmls = await Promise.all(
+          rows.map(async (row: Record<string, any>) => {
+            if (!projectPathRef.current) {
+              const body = html.replace(/\{\{(\w+)\}\}/g, (_match: string, key: string) => {
+                return row[key] !== undefined ? String(row[key]) : '';
+              });
+              return `<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  ${fontCss}
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+            }
+
+            try {
+              const result = await invoke('render_preview_html', {
+                html,
+                css: fontCss,
+                rowJson: JSON.stringify(row),
+                projectPath: projectPathRef.current,
+              }) as string;
+              return result;
+            } catch {
+              const body = html.replace(/\{\{(\w+)\}\}/g, (_match: string, key: string) => {
+                return row[key] !== undefined ? String(row[key]) : '';
+              });
+              return `<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  ${fontCss}
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+            }
+          })
+        );
+
+        const urls = renderedHtmls.map(htmlStr =>
+          URL.createObjectURL(new Blob([htmlStr], { type: 'text/html' }))
+        );
+
+        setBlobUrls(prevUrls => {
+          prevUrls.forEach(url => URL.revokeObjectURL(url));
+          return urls;
+        });
+      } catch (e) {
+        console.error('Preview rendering failed:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPreviews();
+
+    return () => {
+      setBlobUrls(prevUrls => {
+        prevUrls.forEach(url => URL.revokeObjectURL(url));
+        return [];
+      });
+    };
+  }, [html, css, deckData, projectPath]);
 
   const cardWidth = (deckData ? mmToPx(deckData.meta.cardSize.widthMm) : mmToPx(DEFAULT_CARD_WIDTH)) * zoom;
   const cardHeight = (deckData ? mmToPx(deckData.meta.cardSize.heightMm) : mmToPx(DEFAULT_CARD_HEIGHT)) * zoom;
@@ -124,11 +189,23 @@ export function PreviewPanel() {
             No cards to preview — add rows in the Data tab
           </Text>
         )}
+        {loading && blobUrls.length === 0 && (
+          <Text size={300} className={styles.hint}>
+            Rendering preview...
+          </Text>
+        )}
         {blobUrls.map((url: string, i: number) => (
           <div
             key={`${i}-${url}`}
             className={styles.iframeWrap}
-            style={{ width: cardWidth, height: cardHeight }}
+            style={{
+              width: cardWidth,
+              height: cardHeight,
+              background:
+                previewBackground === 'dark' ? '#1a1a1a' :
+                previewBackground === 'light' ? '#ffffff' :
+                'repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px',
+            }}
           >
             <iframe
               src={url}

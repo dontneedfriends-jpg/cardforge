@@ -1,9 +1,10 @@
 import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview } from '@fluentui/react-components';
-import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular } from '@fluentui/react-icons';
-import { useProjectStore, useDeckStore, useEditorStore } from '../../store';
+import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, type FluentIcon } from '@fluentui/react-icons';
+import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../../store';
 import { readDir } from '@tauri-apps/plugin-fs';
 import { useEffect, useState } from 'react';
 import { cardTemplates, type CardTemplate } from '../../shared/templates/cardTemplates';
+import { CARD_SIZE_PRESETS } from '../../shared/cardSizes';
 import { invoke } from '@tauri-apps/api/core';
 
 const useStyles = makeStyles({
@@ -12,6 +13,7 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     height: '100%',
     overflow: 'auto',
+    background: 'var(--mica-base)',
   },
   header: {
     height: '48px',
@@ -20,8 +22,8 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-    background: 'rgba(255, 255, 255, 0.02)',
+    borderBottom: '1px solid var(--mica-stroke)',
+    background: 'var(--mica-layer-1)',
   },
   deckItem: {
     padding: '10px 16px',
@@ -29,15 +31,15 @@ const useStyles = makeStyles({
     borderRadius: '8px',
     margin: '4px 12px',
     transition: 'all 0.15s ease',
-    color: 'rgba(255, 255, 255, 0.65)',
+    color: 'var(--mica-text-secondary)',
     ':hover': {
-      background: 'rgba(255, 255, 255, 0.06)',
-      color: 'rgba(255, 255, 255, 0.9)',
+      background: 'var(--mica-layer-2)',
+      color: 'var(--mica-text-primary)',
     },
   },
   selectedDeck: {
-    background: 'rgba(96, 205, 255, 0.12)',
-    color: '#60cdff',
+    background: 'var(--mica-accent-tertiary)',
+    color: 'var(--mica-accent)',
     boxShadow: '0 0 16px rgba(96, 205, 255, 0.08)',
   },
   fileItem: {
@@ -49,11 +51,11 @@ const useStyles = makeStyles({
     gap: '8px',
     borderRadius: '6px',
     margin: '2px 12px',
-    color: 'rgba(255, 255, 255, 0.40)',
+    color: 'var(--mica-text-tertiary)',
     transition: 'all 0.15s ease',
     ':hover': {
-      background: 'rgba(255, 255, 255, 0.04)',
-      color: 'rgba(255, 255, 255, 0.7)',
+      background: 'var(--mica-layer-1)',
+      color: 'var(--mica-text-secondary)',
     },
   },
   folderIcon: {
@@ -62,7 +64,7 @@ const useStyles = makeStyles({
   },
 });
 
-const fileIcons: Record<string, React.FC<{ fontSize?: number }>> = {
+const fileIcons: Record<string, FluentIcon> = {
   'template.html': CodeRegular,
   'template.css': DocumentCssRegular,
   'cards.csv': TableRegular,
@@ -78,6 +80,7 @@ export function ProjectSidebar() {
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
   const loadData = useDeckStore((s) => s.loadData);
   const loadCardBack = useEditorStore((s) => s.loadCardBack);
+  const defaultCardSizePreset = useUiStore((s) => s.defaultCardSizePreset);
   const [files, setFiles] = useState<string[]>([]);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CardTemplate | null>(null);
@@ -103,10 +106,13 @@ export function ProjectSidebar() {
   };
 
   const handleCreateDeck = async () => {
-    if (!projectPath || !selectedTemplate || !deckName.trim()) return;
+    if (!projectPath || !deckName.trim()) return;
+
+    const preset = CARD_SIZE_PRESETS.find(p => p.id === defaultCardSizePreset);
+    const cardSize = selectedTemplate?.cardSize ?? preset ?? { widthMm: 63, heightMm: 88, bleedMm: 3 };
     
     // Add deck to manifest
-    addDeck(deckName, selectedTemplate.cardSize);
+    addDeck(deckName, cardSize);
     
     // Get the newly created deck
     const updatedManifest = useProjectStore.getState().manifest;
@@ -119,12 +125,12 @@ export function ProjectSidebar() {
       try {
         await invoke('write_template', { 
           deckPath, 
-          html: selectedTemplate.html, 
-          css: selectedTemplate.css 
+          html: selectedTemplate?.html ?? '<div class="card-root" style="position:relative;width:100%;height:100%;"></div>', 
+          css: selectedTemplate?.css ?? '.card-root { width: 100%; height: 100%; }' 
         });
         
         // Create CSV with sample data
-        if (selectedTemplate.sampleData.length > 0) {
+        if (selectedTemplate && selectedTemplate.sampleData.length > 0) {
           const headers = Object.keys(selectedTemplate.sampleData[0]);
           const csvContent = [
             headers.join(','),

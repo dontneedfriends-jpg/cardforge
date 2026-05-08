@@ -4,3 +4,4 @@ pub mod template;
 pub mod assets;
 pub mod watcher;
 pub mod card_back;
+pub mod export;

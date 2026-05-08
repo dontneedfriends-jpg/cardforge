@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { makeStyles } from '@fluentui/react-components';
 import { useCanvasStore } from '../../../store/canvasStore';
 import { CanvasElement } from '../../../store/canvasStore';
-import { useEditorStore, useDeckStore } from '../../../store';
+import { useEditorStore, useDeckStore, useUiStore } from '../../../store';
 import { mmToPx } from '../../../theme';
 import { Rnd } from 'react-rnd';
 import { TextElement } from './elements/TextElement';
@@ -13,6 +13,8 @@ import { LineElement } from './elements/LineElement';
 import { IconElement } from './elements/IconElement';
 import { FieldBadge } from './elements/FieldBadge';
 import { ContainerElement } from './elements/ContainerElement';
+import { AssetPickerDialog } from '../../assets/AssetPickerDialog';
+import { assetPathToRelative } from '../../../shared/utils/assetPath';
 
 const useStyles = makeStyles({
   container: {
@@ -27,13 +29,13 @@ const useStyles = makeStyles({
   canvas: {
     position: 'relative',
     overflow: 'hidden',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--mica-stroke)',
     background: '#1a1a2e',
     borderRadius: '8px',
     flexShrink: 0,
   },
   selected: {
-    outline: '2px solid #60cdff',
+    outline: '2px solid var(--mica-accent)',
     outlineOffset: '2px',
   },
 });
@@ -58,6 +60,8 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
   const styles = useStyles();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [pendingImageElement, setPendingImageElement] = useState<CanvasElement | null>(null);
   const elements = useCanvasStore((state) => state.elements);
   const selectedId = useCanvasStore((state) => state.selectedId);
   const addElement = useCanvasStore((state) => state.addElement);
@@ -69,6 +73,9 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
   const editorMode = useEditorStore((s) => s.editorMode);
   const deckData = useDeckStore((s) => s.deckData);
   const cardSize = deckData?.meta.cardSize ?? { widthMm, heightMm, bleedMm: 3 };
+  const showGrid = useUiStore((s) => s.showGrid);
+  const snapToGrid = useUiStore((s) => s.snapToGrid);
+  const gridSize = useUiStore((s) => s.gridSize);
 
   // Вызываем синхронизацию только в visual режиме.
   // Используем ref чтобы иметь актуальный cardSize в нативных обработчиках.
@@ -152,7 +159,8 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
 
       const size = defaultSizes[type];
 
-      addElementRef.current({
+      const newElement: CanvasElement = {
+        id: `el_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type,
         x: x - size.width / 2,
         y: y - size.height / 2,
@@ -163,10 +171,18 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
         zIndex: elementsLengthRef.current,
         visible: true,
         props: defaultProps[type] || {},
-      });
-      // Синхронизируем canvas → код после добавления элемента.
-      // Используем setTimeout чтобы дождаться коммита Zustand.
-      setTimeout(() => syncIfVisual(), 0);
+      };
+
+      if (type === 'image') {
+        // Show asset picker for images
+        setPendingImageElement(newElement);
+        setAssetPickerOpen(true);
+      } else {
+        addElementRef.current(newElement);
+        // Синхронизируем canvas → код после добавления элемента.
+        // Используем setTimeout чтобы дождаться коммита Zustand.
+        setTimeout(() => syncIfVisual(), 0);
+      }
     };
 
     document.addEventListener('dragover', onDocDragOver);
@@ -196,6 +212,14 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
           height: cardH,
           outline: isDragOver ? '2px dashed #60cdff' : undefined,
           outlineOffset: isDragOver ? '3px' : undefined,
+          background: showGrid
+            ? `
+                linear-gradient(to right, rgba(96,205,255,0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(96,205,255,0.15) 1px, transparent 1px),
+                #1a1a2e
+              `
+            : '#1a1a2e',
+          backgroundSize: showGrid ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, 100% 100%` : undefined,
         }}
         onClick={handleClick}
       >
@@ -217,16 +241,20 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
               position={{ x: el.x, y: el.y }}
               size={{ width: el.width, height: el.height }}
               onDragStop={(_e, d) => {
-                moveElement(el.id, d.x, d.y);
+                const x = snapToGrid ? Math.round(d.x / gridSize) * gridSize : d.x;
+                const y = snapToGrid ? Math.round(d.y / gridSize) * gridSize : d.y;
+                moveElement(el.id, x, y);
                 syncIfVisual();
               }}
               onResizeStop={(_e, _direction, ref, _delta, position) => {
-                resizeElement(
-                  el.id,
-                  parseInt(ref.style.width),
-                  parseInt(ref.style.height)
-                );
-                moveElement(el.id, position.x, position.y);
+                const w = parseInt(ref.style.width);
+                const h = parseInt(ref.style.height);
+                const newW = snapToGrid ? Math.round(w / gridSize) * gridSize : w;
+                const newH = snapToGrid ? Math.round(h / gridSize) * gridSize : h;
+                const newX = snapToGrid ? Math.round(position.x / gridSize) * gridSize : position.x;
+                const newY = snapToGrid ? Math.round(position.y / gridSize) * gridSize : position.y;
+                resizeElement(el.id, newW, newH);
+                moveElement(el.id, newX, newY);
                 syncIfVisual();
               }}
               onMouseDown={(e) => {
@@ -250,6 +278,28 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
           );
         })}
       </div>
+      
+      <AssetPickerDialog
+        open={assetPickerOpen}
+        onOpenChange={setAssetPickerOpen}
+        onSelect={(assetPath) => {
+          if (pendingImageElement) {
+            const relativePath = assetPathToRelative(assetPath);
+            const elementWithSrc = {
+              ...pendingImageElement,
+              props: {
+                ...pendingImageElement.props,
+                src: relativePath,
+                isField: false,
+              }
+            };
+            addElementRef.current(elementWithSrc);
+            setTimeout(() => syncIfVisual(), 0);
+            setPendingImageElement(null);
+          }
+        }}
+        title="Select Image for Card"
+      />
     </div>
   );
 }

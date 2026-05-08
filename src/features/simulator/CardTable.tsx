@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { mmToPx } from '../../theme';
 import type { CardBackDesign } from '../../shared/types/project';
+import { ContextMenu } from './ContextMenu';
 
 interface CardView {
   id: string;
@@ -19,9 +20,12 @@ interface CardTableProps {
   cardHeightMm: number;
   onPlayCard: (id: string) => void;
   onFlipCard: (id: string) => void;
+  onAlignCard: (id: string) => void;
   onRotateCard: (id: string) => void;
   onRotateCard3d: (id: string, rotateX: number, rotateY: number) => void;
   onMoveCard: (id: string, x: number, y: number) => void;
+  onDiscardCard: (id: string, from: 'hand' | 'playArea') => void;
+  onReturnToDeck: (id: string) => void;
   renderCardContent: (id: string) => string;
   cardBackDesign?: CardBackDesign;
 }
@@ -50,9 +54,12 @@ export function CardTable({
   cardHeightMm,
   onPlayCard,
   onFlipCard,
+  onAlignCard,
   onRotateCard,
   onRotateCard3d,
   onMoveCard,
+  onDiscardCard,
+  onReturnToDeck,
   renderCardContent,
   cardBackDesign,
 }: CardTableProps) {
@@ -66,6 +73,15 @@ export function CardTable({
     mode: 'move' | 'rotate';
   } | null>(null);
   const [_, setTick] = useState(0);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    cardId: string;
+    zone: 'hand' | 'playArea' | 'discard';
+  } | null>(null);
+  const [hovered, setHovered] = useState<{ id: string; x: number; y: number } | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ctrlHeld = useRef(false);
 
   const cardW = mmToPx(cardWidthMm);
   const cardH = mmToPx(cardHeightMm);
@@ -74,16 +90,14 @@ export function CardTable({
   const playCards = useMemo(() => cards.filter((c) => !handIds.has(c.id)), [cards, handIds]);
 
   const design = cardBackDesign ?? {
-    backgroundTop: '#1a0a2e',
-    backgroundBottom: '#2a1a4e',
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 2,
-    symbol: '?',
-    symbolSize: 36,
-    symbolColor: 'rgba(255,255,255,0.6)',
-    pattern: 'stripes',
-    patternColor: 'rgba(255,255,255,0.02)',
-    patternOpacity: 1,
+    backgroundTop: '#1a0a2e', backgroundMid: '#1f1240', backgroundBottom: '#2a1a4e',
+    gradientAngle: 135,
+    borderColor: 'rgba(255,255,255,0.1)', borderWidth: 2, borderRadius: 8,
+    shadowColor: 'rgba(0,0,0,0.4)', shadowSize: 12,
+    symbol: '?', symbolSet: 'none', symbolSize: 36, symbolColor: 'rgba(255,255,255,0.6)',
+    symbol2: '', symbol2Size: 18, symbol2Color: 'rgba(255,255,255,0.3)',
+    pattern: 'stripes', patternColor: 'rgba(255,255,255,0.02)', patternOpacity: 1,
+    textureUrl: '', textureOpacity: 0.3,
   };
 
   const getHandPosition = useCallback(
@@ -111,12 +125,19 @@ export function CardTable({
       const mode = e.altKey || e.button === 2 ? 'rotate' : 'move';
 
       el.setPointerCapture(e.pointerId);
+
+      const cardEl = e.currentTarget as HTMLElement;
+      const cardRect = cardEl.getBoundingClientRect();
+      const containerRect = el.getBoundingClientRect();
+      const visualX = cardRect.left - containerRect.left;
+      const visualY = cardRect.top - containerRect.top;
+
       dragRef.current = {
         id: card.id,
         startX: e.clientX,
         startY: e.clientY,
-        origX: card.x,
-        origY: card.y,
+        origX: visualX,
+        origY: visualY,
         mode,
       };
 
@@ -170,10 +191,42 @@ export function CardTable({
     return () => el.removeEventListener('pointerup', handlePointerUp);
   }, [handlePointerUp]);
 
+  // Context menu closes via overlay onClick in ContextMenu component
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Control') ctrlHeld.current = true;
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'Control') {
+        ctrlHeld.current = false;
+        setHovered(null);
+      }
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, []);
+
   const patternCss = useMemo(
     () => getPatternCss(design.pattern, design.patternColor, design.patternOpacity),
     [design.pattern, design.patternColor, design.patternOpacity]
   );
+
+  const handleContextMenu = (e: React.MouseEvent, card: CardView) => {
+    e.preventDefault();
+    dragRef.current = null;
+    const inHand = handIds.has(card.id);
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      cardId: card.id,
+      zone: inHand ? 'hand' : 'playArea',
+    });
+  };
 
   const renderCard = (card: CardView, computedX?: number, computedY?: number) => {
     const inHand = handIds.has(card.id);
@@ -198,6 +251,18 @@ export function CardTable({
           zIndex: isDragging ? 999 : Math.round(y + (inHand ? 0 : 100)),
         }}
         onPointerDown={(e) => handlePointerDown(e, card)}
+        onPointerEnter={(e) => {
+          if (!ctrlHeld.current) return;
+          if (hoverTimer.current) clearTimeout(hoverTimer.current);
+          hoverTimer.current = setTimeout(() => {
+            setHovered({ id: card.id, x: e.clientX, y: e.clientY });
+          }, 400);
+        }}
+        onPointerLeave={() => {
+          if (hoverTimer.current) clearTimeout(hoverTimer.current);
+          setHovered(null);
+        }}
+        onContextMenu={(e) => handleContextMenu(e, card)}
         onDoubleClick={(e) => {
           e.stopPropagation();
           if (inHand) {
@@ -205,10 +270,6 @@ export function CardTable({
           } else {
             onFlipCard(card.id);
           }
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          if (!inHand) onRotateCard(card.id);
         }}
       >
         <div
@@ -233,12 +294,7 @@ export function CardTable({
           >
             <iframe
               srcDoc={renderCardContent(card.id)}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                pointerEvents: 'none',
-              }}
+              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
               title={`${card.id}-front`}
               sandbox="allow-scripts"
             />
@@ -250,39 +306,61 @@ export function CardTable({
               inset: 0,
               backfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              borderRadius: 6,
+              borderRadius: design.borderRadius,
               overflow: 'hidden',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              boxShadow: `${design.shadowColor} 0 ${design.shadowSize}px ${design.shadowSize * 2}px`,
             }}
           >
             <div
               style={{
                 width: '100%',
                 height: '100%',
-                background: `linear-gradient(135deg, ${design.backgroundTop} 0%, ${design.backgroundBottom} 30%, ${design.backgroundTop} 100%)`,
+                background: `linear-gradient(${design.gradientAngle}deg, ${design.backgroundTop} 0%, ${design.backgroundMid} 50%, ${design.backgroundBottom} 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
               }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: patternCss,
-                }}
-              />
+              {design.textureUrl && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundImage: `url(${design.textureUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    opacity: design.textureOpacity,
+                  }}
+                />
+              )}
+              <div style={{ position: 'absolute', inset: 0, background: patternCss }} />
+              {design.symbol2 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12%',
+                    right: '12%',
+                    fontSize: design.symbol2Size,
+                    color: design.symbol2Color,
+                    fontWeight: 700,
+                    fontFamily: 'serif',
+                    zIndex: 2,
+                  }}
+                >
+                  {design.symbol2}
+                </div>
+              )}
               <div
                 style={{
                   width: '70%',
                   height: '70%',
                   borderRadius: '50%',
-                  border: `2px solid ${design.borderColor}`,
+                  border: `${design.borderWidth}px solid ${design.borderColor}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: `radial-gradient(circle at center, ${design.backgroundBottom}66 0%, transparent 70%)`,
+                  background: `radial-gradient(circle at center, ${design.backgroundMid}66 0%, transparent 70%)`,
                   position: 'relative',
                   zIndex: 1,
                 }}
@@ -327,6 +405,123 @@ export function CardTable({
         const pos = getHandPosition(i, handCards.length);
         return renderCard(card, pos.x, pos.y);
       })}
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          zone={contextMenu.zone}
+          onFlip={() => { onFlipCard(contextMenu.cardId); setContextMenu(null); }}
+          onAlign={() => { onAlignCard(contextMenu.cardId); setContextMenu(null); }}
+          onRotate={() => { onRotateCard(contextMenu.cardId); setContextMenu(null); }}
+          onPlay={() => { onPlayCard(contextMenu.cardId); setContextMenu(null); }}
+          onDiscard={() => { onDiscardCard(contextMenu.cardId, contextMenu.zone === 'hand' ? 'hand' : 'playArea'); setContextMenu(null); }}
+          onReturnToDeck={() => { onReturnToDeck(contextMenu.cardId); setContextMenu(null); }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {hovered && ctrlHeld.current && !contextMenu && !dragRef.current && (() => {
+        const card = cards.find((c) => c.id === hovered.id);
+        if (!card) return null;
+        const previewW = cardW * 2;
+        const previewH = cardH * 2;
+        let left = hovered.x + 16;
+        let top = hovered.y - previewH / 2;
+        if (left + previewW > window.innerWidth - 16) left = hovered.x - previewW - 16;
+        if (top < 16) top = 16;
+        if (top + previewH > window.innerHeight - 16) top = window.innerHeight - previewH - 16;
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              left,
+              top,
+              width: previewW,
+              height: previewH,
+              zIndex: 10000,
+              pointerEvents: 'none',
+              borderRadius: 6,
+              overflow: 'hidden',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+              transformStyle: 'preserve-3d',
+              transform: `rotateY(${card.faceDown ? 180 : 0}deg)`,
+              transition: 'transform 0.2s ease',
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+              <iframe
+                srcDoc={renderCardContent(card.id)}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title={`${card.id}-hover`}
+                sandbox="allow-scripts"
+              />
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+                borderRadius: design.borderRadius,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: '100%', height: '100%',
+                  background: `linear-gradient(${design.gradientAngle}deg, ${design.backgroundTop} 0%, ${design.backgroundMid} 50%, ${design.backgroundBottom} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+              >
+                {design.textureUrl && (
+                  <div
+                    style={{
+                      position: 'absolute', inset: 0,
+                      backgroundImage: `url(${design.textureUrl})`,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                      opacity: design.textureOpacity,
+                    }}
+                  />
+                )}
+                <div style={{ position: 'absolute', inset: 0, background: patternCss }} />
+                {design.symbol2 && (
+                  <div
+                    style={{
+                      position: 'absolute', top: '12%', right: '12%',
+                      fontSize: design.symbol2Size,
+                      color: design.symbol2Color,
+                      fontWeight: 700, fontFamily: 'serif', zIndex: 2,
+                    }}
+                  >
+                    {design.symbol2}
+                  </div>
+                )}
+                <div
+                  style={{
+                    width: '70%', height: '70%',
+                    borderRadius: '50%',
+                    border: `${design.borderWidth}px solid ${design.borderColor}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: `radial-gradient(circle at center, ${design.backgroundMid}66 0%, transparent 70%)`,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  <span style={{ fontSize: design.symbolSize, fontWeight: 700, color: design.symbolColor, fontFamily: 'serif' }}>
+                    {design.symbol || '?'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

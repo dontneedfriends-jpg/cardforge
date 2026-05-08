@@ -27,6 +27,7 @@ cardforge/
 │       ├── csv_ops.rs      # Чтение/запись CSV
 │       ├── template.rs     # Работа с шаблонами
 │       ├── card_back.rs    # Рубашка карт
+│       ├── export.rs       # Экспорт PNG
 │       ├── assets.rs       # Управление ассетами
 │       └── watcher.rs      # Файловый watcher
 │
@@ -100,7 +101,7 @@ cardforge/
 │   │   │   └── ExportPage.tsx     # Экспорт PNG/PDF
 │   │   │
 │   │   └── settings/
-│   │       └── SettingsPage.tsx   # Настройки
+│   │       └── SettingsPage.tsx   # Настройки (General/Editor/Export/About)
 │   │
 │   └── theme/
 │       └── index.ts         # mmToPx конвертер
@@ -132,6 +133,18 @@ cardforge/
 - **mica-card**: border-radius 12px + hover-эффект
 - **mica-button**: transition + hover
 
+## Настройки приложения
+
+### Вкладки
+1. **General** — Тема (light/dark/system), размер шрифта, плотность интерфейса, язык, подсказки, авто-сохранение, подтверждение удаления, лимит недавних проектов
+2. **Editor** — Отображение сетки, привязка к сетке, размер сетки (10/20/25/50px), размер карты по умолчанию
+3. **Export** — DPI по умолчанию (150/300/600), bleed (0/3/5mm), фон превью (checkerboard/dark/light)
+4. **About** — Логотип, версия, описание, ссылки (GitHub/Docs/Showcase), кредиты (команда и используемые технологии), лицензия MIT, сброс настроек (Danger Zone)
+
+### Сохранение
+- Все настройки хранятся в `localStorage` через `zustand persist`
+- Кнопка "Reset" в About с подтверждением сбрасывает все настройки к значениям по умолчанию
+
 ## Визуальный редактор (WYSIWYG)
 
 ### Архитектура
@@ -139,11 +152,11 @@ cardforge/
 - **Причина**: Craft.js несовместим с React 18.2+ в Tauri WebView2
 - **Исправление Tauri drag**: `dragDropEnabled: false` в `tauri.conf.json`
 
-### Canvas
+### Canvas (div-based, не HTML5 Canvas)
 - Размер: 600×900px (стандартная карта)
 - Сетка: 20px с подсветкой
 - Drop: глобальные `document.addEventListener('dragover'/'drop')` вместо React events
-- Элементы позиционируются абсолютно (X, Y, W, H, Rotation)
+- Элементы — обычные DOM-узлы (`div`) с `position: absolute` (X, Y, W, H, Rotation)
 
 ### 8 типов элементов
 1. **Text** — текст с настройками шрифта
@@ -239,16 +252,18 @@ cardforge/
 ## Экспорт
 
 ### PNG
-- Batch export через Rust + headless Chromium
+- Batch export через `html-to-image` → Rust `export_png_batch`
+- Выбор папки через Tauri dialog
 - Настройка DPI (150/300/600)
 
 ### PDF
-- Print-ready layout с crop marks
-- Настройка bleed и page size
+- Print-ready HTML с crop marks (вырезаемые метки по углам)
+- Настройка bleed, page size (A4/Letter), crop marks toggle, low ink
+- Открывает print preview → Ctrl+P
 
 ### Tabletop Simulator
-- Spritesheet генерация
-- JSON descriptor
+- Spritesheet генерация (TODO)
+- JSON descriptor (TODO)
 
 ## Хранение данных
 
@@ -272,9 +287,11 @@ project/
 
 ## Клавиатурные сокращения
 
-- **Ctrl+S** — сохранить шаблон
-- **Ctrl+Shift+S** — сохранить всё
-- **Ctrl+Z/Y** — undo/redo (только Code режим)
+- **Ctrl+S** — сохранить шаблон + данные
+- **Ctrl+Z** — undo (визуальный редактор)
+- **Ctrl+Shift+Z / Ctrl+Y** — redo (визуальный редактор)
+- **F5** — открыть симулятор
+- **Ctrl+E** — открыть экспорт
 
 ## Симулятор
 
@@ -287,13 +304,50 @@ project/
 - CSS rotateY(180deg) для переворота карты
 - Рубашка применяется на всех картах с `faceDown=true`
 
+## Настройки приложения
+
+### Вкладки
+1. **General** — Тема, размер шрифта, плотность интерфейса, язык, подсказки
+2. **Editor** — Сетка, привязка к сетке, размер сетки, размер карты по умолчанию
+3. **Export** — DPI, bleed, фон превью
+4. **About** — Информация о программе, версия, кредиты, лицензия, сброс настроек
+
+### Сохранение
+- Все настройки сохраняются в localStorage через zustand persist
+- Сброс к значениям по умолчанию через кнопку в About → Danger Zone
+
 ## Известные ограничения
 
 1. **HTML Parser** — упрощённый, работает только с абсолютно позиционированными элементами
 2. **Visual → Code** — теряет сложные CSS, сохраняет только inline позиционирование
 3. **Icons** — Unicode символы вместо SVG
-4. **Image drag & drop** — только через Import диалог
+4. **Image drag & drop** — только через Import диалог (браузерное drag & drop не даёт полный путь)
 5. **Live sync** — callback-based, требует ручного нажатия кнопки sync
+
+## Исправления
+
+### Импорт ассетов (фикс)
+- **Проблема**: Импорт файлов не работал из-за отсутствия обработки ошибок и создания папки assets. Thumbnails не отображались из-за `asset.localhost` URL которого не существует.
+- **Решение**: 
+  - Добавлено автоматическое создание папки `assets` через `mkdir` если её нет
+  - Добавлено логирование ошибок в консоль и отображение пользователю через MessageBar
+  - **Thumbnails**: Rust backend генерирует base64 thumbnails при загрузке ассетов
+  - Добавлена команда `open_asset_externally` для открытия файлов внешней программой
+  - Улучшен UI с drag & drop зоной (браузерное DnD показывает подсказку использовать Import кнопку)
+
+### Preview с ассетами (фикс)
+- **Проблема**: Изображения на картах в preview не отображались — `convertFileSrc()` создавал `asset.localhost` URLs которые не работают (ERR_CONNECTION_REFUSED)
+- **Решение**: 
+  - Создана Rust команда `render_preview_html` которая рендерит Handlebars шаблон и заменяет все `assets/...` на base64 data URLs
+  - PreviewPanel теперь вызывает эту команду асинхронно вместо локального рендеринга
+  - CSS стили также инлайнятся в HTML документ
+  - Fallback на локальный рендеринг если команда недоступна
+
+### Griffel CSS Shorthand (фикс)
+- **Проблема**: Griffel (CSS-in-JS движок Fluent UI) не поддерживает shorthand CSS свойства (`borderColor`, `background`)
+- **Решение**: Заменены все shorthand свойства на явные:
+  - `borderColor` → `borderTopColor` + `borderRightColor` + `borderBottomColor` + `borderLeftColor`
+  - `border` → `borderTopWidth` + `borderRightWidth` + `borderBottomWidth` + `borderLeftWidth` + `borderTopStyle` + `borderRightStyle` + `borderBottomStyle` + `borderLeftStyle` + цвета
 
 ## Ключевые решения
 
@@ -335,23 +389,25 @@ npx tsc --noEmit
 - [x] Работающий WYSIWYG редактор (native DnD + react-rnd)
 - [x] Live preview с iframe srcdoc
 - [x] Visual↔Code синхронизация через canvasStore
+- [x] Starter canvas templates: HTML+CSS → CanvasElement[] при загрузке колоды
 - [x] Симулятор с drag-to-move и fan layout
 - [x] Card Back Editor + сохранение в card_back.json
 - [x] 14 starter templates
 - [ ] Стабилизировать live sync без infinite loops (syncSource guard)
 - [ ] Сохранение/загрузка canvas state из папки колоды (canvas.json)
 - [ ] Удалить мёртвые файлы: serializer.ts, htmlParser.ts, withPosition.tsx, PositionedWrapper.tsx, EmptyState.tsx, DeckList.tsx
-- [ ] Удалить неиспользуемые npm пакеты: @tanstack/router-devtools, use-debounce
+- [x] Удалить неиспользуемые npm пакеты: @tanstack/router-devtools, use-debounce
 - [ ] Починить deckStore.saveData (относительный путь без projectPath)
 - [ ] Починить NavRail inline :hover (не работает в React style prop)
 - [ ] SVG иконки вместо Unicode
 - [ ] Drag & drop для ассетов
 - [ ] Undo/redo для Code режима
 - [ ] Темы (light/dark/system)
-- [ ] Кастомные шрифты
-- [ ] TTS Spritesheet export
-- [ ] PNG/PDF export с crop marks (Rust export.rs)
-- [ ] Keyboard shortcuts (Ctrl+Z/Y, Ctrl+P, Ctrl+E, F5)
+- [x] Кастомные шрифты (загрузка .ttf/.otf, @font-face через base64, выбор в PropertiesPanel, рендеринг во всех контекстах)
+- [x] PNG batch export (html-to-image + Rust export_png_batch)
+- [x] PDF с crop marks / bleed / page size (print-ready HTML)
+- [x] Keyboard shortcuts (Ctrl+Z/Y, Ctrl+E, F5)
+- [x] TTS Spritesheet export (image crate + Rust compositing + JSON descriptor)
 - [ ] Коллаборативное редактирование
 - [ ] Cloud sync
 - [ ] Marketplace шаблонов

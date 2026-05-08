@@ -30,10 +30,12 @@ export interface SimulatorActions {
   playCard: (id: string) => void;
   discardCard: (id: string, from: 'hand' | 'playArea') => void;
   flipCard: (id: string) => void;
+  alignCard: (id: string) => void;
   rotateCard: (id: string) => void;
   rotateCard3d: (id: string, rotateX: number, rotateY: number) => void;
   moveCard: (id: string, x: number, y: number) => void;
   returnToDeck: (id: string) => void;
+  resetGame: () => void;
 }
 
 type SimulatorStore = SimulatorState & SimulatorActions;
@@ -132,23 +134,35 @@ export const useSimulatorStore = create<SimulatorStore>()(
 
     flipCard: (id: string) => {
       set((state) => {
-        const all = [...state.playArea, ...state.hand, ...state.discard];
+        const all = [...state.deck, ...state.playArea, ...state.hand, ...state.discard];
         const card = all.find((c) => c.id === id);
         if (card) card.faceDown = !card.faceDown;
       });
     },
 
+    alignCard: (id: string) => {
+      set((state) => {
+        const all = [...state.deck, ...state.playArea, ...state.hand, ...state.discard];
+        const card = all.find((c) => c.id === id);
+        if (card) {
+          card.rotation = 0;
+          card.rotate3dX = 0;
+          card.rotate3dY = 0;
+        }
+      });
+    },
+
     rotateCard: (id: string) => {
       set((state) => {
-        const all = [...state.playArea, ...state.hand, ...state.discard];
+        const all = [...state.deck, ...state.playArea, ...state.hand, ...state.discard];
         const card = all.find((c) => c.id === id);
-        if (card) card.rotation = (card.rotation + 15) % 360;
+        if (card) card.rotation = (card.rotation + 45) % 360;
       });
     },
 
     rotateCard3d: (id: string, rotateX: number, rotateY: number) => {
       set((state) => {
-        const all = [...state.playArea, ...state.hand, ...state.discard];
+        const all = [...state.deck, ...state.playArea, ...state.hand, ...state.discard];
         const card = all.find((c) => c.id === id);
         if (card) {
           card.rotate3dX = rotateX;
@@ -186,6 +200,17 @@ export const useSimulatorStore = create<SimulatorStore>()(
             break;
           }
         }
+      });
+    },
+
+    resetGame: () => {
+      set((state) => {
+        const all = [...state.hand, ...state.playArea, ...state.discard];
+        state.deck.push(...all);
+        state.hand = [];
+        state.playArea = [];
+        state.discard = [];
+        state.deck = fisherYates(state.deck);
       });
     },
   }))

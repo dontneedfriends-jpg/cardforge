@@ -75,15 +75,26 @@ export interface CardSize {
 
 export interface CardBackDesign {
   backgroundTop: string;
+  backgroundMid: string;
   backgroundBottom: string;
+  gradientAngle: number;
   borderColor: string;
   borderWidth: number;
+  borderRadius: number;
+  shadowColor: string;
+  shadowSize: number;
   symbol: string;
+  symbolSet: string;
   symbolSize: number;
   symbolColor: string;
+  symbol2: string;
+  symbol2Size: number;
+  symbol2Color: string;
   pattern: 'none' | 'stripes' | 'dots' | 'crosshatch';
   patternColor: string;
   patternOpacity: number;
+  textureUrl: string;
+  textureOpacity: number;
 }
 
 export interface DeckData {

@@ -4,6 +4,7 @@ import { TemplateEditor } from '../template-editor/TemplateEditor';
 import { DataEditor } from '../data-editor/DataEditor';
 import { PreviewPanel } from '../preview/PreviewPanel';
 import { AssetManager } from '../assets/AssetManager';
+import { OverviewPage } from '../overview/OverviewPage';
 import { useUiStore, useProjectStore } from '../../store';
 import { useSaveHotkey } from '../../shared/hooks/useSaveHotkey';
 import { useFileWatcher } from '../../shared/hooks/useFileWatcher';
@@ -27,52 +28,65 @@ export function EditorPage() {
     switch (sidebarTab) {
       case 'data': return <DataEditor />;
       case 'assets': return <AssetManager />;
+      case 'overview': return <OverviewPage />;
       default: return <TemplateEditor />;
     }
   })();
 
+  const showLeft = sidebarTab === 'decks' || sidebarTab === 'data' || sidebarTab === 'assets';
+
   return (
     <Group orientation="horizontal" style={{ height: '100%' }} resizeTargetMinimumSize={{ coarse: 30, fine: 20 }}>
-      <Panel id="left" defaultSize={25} minSize={18}>
+      {showLeft && (
+        <>
+          <Panel id="left" defaultSize={25} minSize={18}>
+            <div style={{ 
+              height: '100%', 
+              background: 'var(--mica-layer-1)',
+              backdropFilter: 'blur(40px)',
+              borderRight: '1px solid var(--mica-stroke)',
+              overflow: 'hidden',
+            }}>
+              <ProjectSidebar />
+            </div>
+          </Panel>
+          <Separator id="sep-left" style={{ 
+            width: 4, 
+            background: 'var(--mica-stroke-subtle)', 
+            zIndex: 1,
+            borderRadius: 2,
+            margin: '8px 0',
+            transition: 'background 0.2s ease',
+          }} />
+        </>
+      )}
+      
+      <Panel id="center" defaultSize={showLeft ? 45 : 70} minSize={30}>
         <div style={{ 
           height: '100%', 
-          background: 'rgba(255, 255, 255, 0.02)',
-          backdropFilter: 'blur(40px)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-        }}>
-          <ProjectSidebar />
-        </div>
-      </Panel>
-      <Separator id="sep-left" style={{ 
-        width: 4, 
-        background: 'rgba(255, 255, 255, 0.03)', 
-        zIndex: 1,
-        borderRadius: 2,
-        margin: '8px 0',
-        transition: 'background 0.2s ease',
-      }} />
-      <Panel id="center" defaultSize={45} minSize={30}>
-        <div style={{ 
-          height: '100%', 
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: 'var(--mica-base)',
+          overflow: 'hidden',
         }}>
           {centerPanel}
         </div>
       </Panel>
+      
       <Separator id="sep-right" style={{ 
         width: 4, 
-        background: 'rgba(255, 255, 255, 0.03)', 
+        background: 'var(--mica-stroke-subtle)', 
         zIndex: 1,
         borderRadius: 2,
         margin: '8px 0',
         transition: 'background 0.2s ease',
       }} />
-      <Panel id="right" defaultSize={30} minSize={20}>
+      
+      <Panel id="right" defaultSize={showLeft ? 30 : 30} minSize={20}>
         <div style={{ 
           height: '100%', 
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--mica-layer-1)',
           backdropFilter: 'blur(40px)',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.06)',
+          borderLeft: '1px solid var(--mica-stroke)',
+          overflow: 'hidden',
         }}>
           <PreviewPanel />
         </div>

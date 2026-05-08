@@ -1,9 +1,8 @@
 import { Text, makeStyles, Input, Button, Checkbox, Dropdown, Option, SpinButton, Textarea } from '@fluentui/react-components';
 import { AddRegular, DeleteRegular } from '@fluentui/react-icons';
 import type { SpinButtonOnChangeData } from '@fluentui/react-components';
-import { useDeckStore } from '../../store';
+import { useDeckStore, useUiStore } from '../../store';
 import type { CellValue, Column } from '../../shared/types/project';
-import { convertFileSrc } from '@tauri-apps/api/core';
 
 const useStyles = makeStyles({
   container: {
@@ -19,14 +18,14 @@ const useStyles = makeStyles({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 16px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    background: 'var(--mica-layer-1)',
+    borderBottom: '1px solid var(--mica-stroke)',
   },
   tableWrap: {
     flex: 1,
     overflow: 'auto',
     padding: '12px',
-    background: 'rgba(255, 255, 255, 0.01)',
+    background: 'var(--mica-base)',
   },
   table: {
     width: '100%',
@@ -38,20 +37,20 @@ const useStyles = makeStyles({
   th: {
     padding: '10px 12px',
     textAlign: 'left',
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'var(--mica-layer-2)',
+    borderBottom: '1px solid var(--mica-stroke)',
     fontWeight: 600,
     fontSize: '12px',
-    color: 'rgba(255, 255, 255, 0.65)',
+    color: 'var(--mica-text-secondary)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
   td: {
     padding: '8px 12px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+    borderBottom: '1px solid var(--mica-stroke-subtle)',
     transition: 'background 0.15s ease',
     ':hover': {
-      background: 'rgba(255, 255, 255, 0.02)',
+      background: 'var(--mica-layer-1)',
     },
   },
   input: {
@@ -148,7 +147,7 @@ function CellInput({ col, value, onChange }: { col: Column; value: CellValue; on
         <div className={styles.imageCell}>
           {typeof value === 'string' && value && (
             <img
-              src={value.startsWith('http') ? value : convertFileSrc(value)}
+              src={value || ''}
               alt=""
               className={styles.imageThumb}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -193,6 +192,12 @@ export function DataEditor() {
   const addRow = useDeckStore((s) => s.addRow);
   const deleteRow = useDeckStore((s) => s.deleteRow);
   const updateCell = useDeckStore((s) => s.updateCell);
+  const confirmDelete = useUiStore((s) => s.confirmDelete);
+
+  const handleDeleteRow = (rowIdx: number) => {
+    if (confirmDelete && !confirm('Delete this row?')) return;
+    deleteRow(rowIdx);
+  };
 
   if (!deckData) {
     return (
@@ -240,7 +245,7 @@ export function DataEditor() {
                   </td>
                 ))}
                 <td className={styles.td}>
-                  <Button icon={<DeleteRegular />} size="small" appearance="subtle" onClick={() => deleteRow(rowIdx)} />
+                  <Button icon={<DeleteRegular />} size="small" appearance="subtle" onClick={() => handleDeleteRow(rowIdx)} />
                 </td>
               </tr>
             ))}

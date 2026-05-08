@@ -2,6 +2,19 @@ use std::collections::HashMap;
 use std::fs;
 
 #[tauri::command]
+pub async fn count_csv_rows(path: String) -> Result<usize, String> {
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read CSV: {}", e))?;
+    let mut reader = csv::Reader::from_reader(content.as_bytes());
+    let mut count = 0usize;
+    for result in reader.records() {
+        result.map_err(|e| format!("Failed to read CSV record: {}", e))?;
+        count += 1;
+    }
+    Ok(count)
+}
+
+#[tauri::command]
 pub async fn read_csv(path: String) -> Result<Vec<HashMap<String, String>>, String> {
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read CSV: {}", e))?;

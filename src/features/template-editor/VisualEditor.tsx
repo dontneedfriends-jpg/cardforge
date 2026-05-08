@@ -13,27 +13,27 @@ const useStyles = makeStyles({
   },
   leftPanel: {
     width: '200px',
-    borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+    borderRight: '1px solid var(--mica-stroke)',
     overflow: 'auto',
     flexShrink: 0,
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'var(--mica-layer-1)',
   },
   center: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    background: 'rgba(255, 255, 255, 0.01)',
+    background: 'var(--mica-base)',
     position: 'relative',
   },
   rightPanel: {
     width: '240px',
-    borderLeft: '1px solid rgba(255, 255, 255, 0.06)',
+    borderLeft: '1px solid var(--mica-stroke)',
     overflow: 'auto',
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column',
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'var(--mica-layer-1)',
   },
   toolbar: {
     height: '36px',
@@ -42,8 +42,8 @@ const useStyles = makeStyles({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 12px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-    background: 'rgba(255, 255, 255, 0.03)',
+    borderBottom: '1px solid var(--mica-stroke)',
+    background: 'var(--mica-layer-2)',
   },
 });
 
@@ -56,13 +56,13 @@ export function VisualEditor() {
     <div className={styles.container}>
       <div className={styles.leftPanel}>
         <div className={styles.toolbar}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Elements</span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Elements</span>
         </div>
         <ElementPanel />
       </div>
       <div className={styles.center}>
         <div className={styles.toolbar}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Canvas</span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Canvas</span>
         </div>
         <Canvas 
           widthMm={cardSize.widthMm} 
@@ -70,15 +70,15 @@ export function VisualEditor() {
         />
       </div>
       <div className={styles.rightPanel}>
-        <div style={{ flex: 1, overflow: 'auto', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div style={{ flex: 1, overflow: 'auto', borderBottom: '1px solid var(--mica-stroke)' }}>
           <div className={styles.toolbar}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Properties</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Properties</span>
           </div>
           <PropertiesPanel />
         </div>
         <div style={{ flex: 1, overflow: 'auto' }}>
           <div className={styles.toolbar}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Layers</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Layers</span>
           </div>
           <LayersPanel />
         </div>

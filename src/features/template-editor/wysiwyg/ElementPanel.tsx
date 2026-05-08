@@ -26,7 +26,7 @@ const useStyles = makeStyles({
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '1px',
-    color: 'rgba(255, 255, 255, 0.35)',
+    color: 'var(--mica-text-tertiary)',
     padding: '8px 8px 4px',
     marginTop: '4px',
   },
@@ -38,10 +38,10 @@ const useStyles = makeStyles({
     borderRadius: '6px',
     cursor: 'grab',
     transition: 'all 0.15s ease',
-    color: 'rgba(255, 255, 255, 0.65)',
+    color: 'var(--mica-text-secondary)',
     ':hover': {
-      background: 'rgba(255, 255, 255, 0.08)',
-      color: 'rgba(255, 255, 255, 0.9)',
+      background: 'var(--mica-layer-2)',
+      color: 'var(--mica-text-primary)',
     },
     ':active': {
       cursor: 'grabbing',

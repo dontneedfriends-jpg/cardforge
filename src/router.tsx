@@ -5,9 +5,12 @@ import { WelcomePage } from './features/welcome/WelcomePage';
 import { EditorPage } from './features/welcome/EditorPage';
 import { SimulatorPage } from './features/simulator/SimulatorPage';
 import { ExportPage } from './features/export/ExportPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 import { useUiStore } from './store';
+import { useGlobalHotkeys } from './shared/hooks/useGlobalHotkeys';
 
 function Shell() {
+  useGlobalHotkeys();
   const theme = useUiStore((s) => s.theme);
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -22,12 +25,12 @@ function Shell() {
           position: 'relative',
         }}
       >
-        {/* Background gradient layer for depth */}
-        <div 
+        {/* Background layer */}
+        <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(160deg, rgba(40,45,60,0.4) 0%, rgba(20,20,25,0.2) 50%, rgba(30,35,50,0.3) 100%)',
+            background: 'var(--mica-base)',
             pointerEvents: 'none',
             zIndex: 0,
           }}
@@ -68,8 +71,6 @@ const exportRoute = createRoute({
   path: '/export',
   component: ExportPage,
 });
-
-import { SettingsPage } from './features/settings/SettingsPage';
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,

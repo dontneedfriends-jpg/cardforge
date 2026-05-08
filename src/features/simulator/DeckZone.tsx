@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Text, makeStyles, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions } from '@fluentui/react-components';
+import { Button, Text, makeStyles, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, Tooltip } from '@fluentui/react-components';
+import { ArrowSyncRegular, ArrowResetRegular } from '@fluentui/react-icons';
 import type { CellValue } from '../../shared/types/project';
 
 interface DeckZoneProps {
@@ -7,10 +8,12 @@ interface DeckZoneProps {
   handCount: number;
   discardCount: number;
   deckCards: { rowIndex: number; row: Record<string, CellValue> }[];
+  discardCards: { rowIndex: number; row: Record<string, CellValue> }[];
   onShuffle: () => void;
   onDraw: () => void;
   onDrawAll: () => void;
   onDrawSpecific: (rowIndex: number) => void;
+  onReset: () => void;
 }
 
 const useStyles = makeStyles({
@@ -32,7 +35,7 @@ const useStyles = makeStyles({
     minWidth: '80px',
     cursor: 'pointer',
     padding: '4px',
-    borderRadius: 'var(--mica-radius-default)',
+    borderRadius: '8px',
     transition: 'all 0.15s ease',
     ':hover': {
       background: 'var(--mica-layer-2)',
@@ -41,7 +44,7 @@ const useStyles = makeStyles({
   pileBox: {
     width: '56px',
     height: '40px',
-    borderRadius: 'var(--mica-radius-default)',
+    borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -53,14 +56,20 @@ const useStyles = makeStyles({
   },
   pileBoxActive: {
     background: 'var(--mica-accent)',
-    color: 'var(--mica-base-active)',
+    color: '#1c1c1c',
     border: '2px solid var(--mica-accent)',
     boxShadow: '0 0 12px rgba(96,205,255,0.3)',
+  },
+  pileBoxDanger: {
+    background: 'rgba(255, 80, 80, 0.2)',
+    color: '#ff5050',
+    border: '2px solid rgba(255, 80, 80, 0.3)',
   },
   actions: {
     display: 'flex',
     gap: '8px',
     marginLeft: 'auto',
+    alignItems: 'center',
   },
   cardList: {
     display: 'flex',
@@ -71,7 +80,7 @@ const useStyles = makeStyles({
   },
   cardListItem: {
     padding: '8px 12px',
-    borderRadius: 'var(--mica-radius-default)',
+    borderRadius: '8px',
     cursor: 'pointer',
     background: 'var(--mica-layer-1)',
     border: '1px solid var(--mica-stroke)',
@@ -88,13 +97,16 @@ export function DeckZone({
   handCount,
   discardCount,
   deckCards,
+  discardCards,
   onShuffle,
   onDraw,
   onDrawAll,
   onDrawSpecific,
+  onReset,
 }: DeckZoneProps) {
   const styles = useStyles();
-  const [open, setOpen] = useState(false);
+  const [drawOpen, setDrawOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   const getCardLabel = (row: Record<string, CellValue>) => {
     const name = row.name || row.title || row.card_name || row.Name || row.Title;
@@ -106,12 +118,14 @@ export function DeckZone({
   return (
     <>
       <div className={styles.container}>
-        <div className={styles.pile} onClick={() => deckCount > 0 && setOpen(true)}>
-          <div className={`${styles.pileBox} ${deckCount > 0 ? styles.pileBoxActive : ''}`}>
-            {deckCount}
+        <Tooltip content="Click to draw a specific card" relationship="label">
+          <div className={styles.pile} onClick={() => deckCount > 0 && setDrawOpen(true)}>
+            <div className={`${styles.pileBox} ${deckCount > 0 ? styles.pileBoxActive : ''}`}>
+              {deckCount}
+            </div>
+            <Text size={200}>Deck</Text>
           </div>
-          <Text size={200}>Deck</Text>
-        </div>
+        </Tooltip>
 
         <div className={styles.pile}>
           <div className={`${styles.pileBox} ${handCount > 0 ? styles.pileBoxActive : ''}`}>
@@ -120,27 +134,42 @@ export function DeckZone({
           <Text size={200}>Hand</Text>
         </div>
 
-        <div className={styles.pile}>
-          <div className={`${styles.pileBox} ${discardCount > 0 ? styles.pileBoxActive : ''}`}>
-            {discardCount}
+        <Tooltip content={discardCount > 0 ? 'Click to see discarded cards' : ''} relationship="label">
+          <div className={styles.pile} onClick={() => discardCount > 0 && setDiscardOpen(true)}>
+            <div className={`${styles.pileBox} ${discardCount > 0 ? styles.pileBoxDanger : ''}`}>
+              {discardCount}
+            </div>
+            <Text size={200}>Discard</Text>
           </div>
-          <Text size={200}>Discard</Text>
-        </div>
+        </Tooltip>
 
         <div className={styles.actions}>
-          <Button size="small" onClick={onShuffle} disabled={deckCount === 0}>
-            Shuffle
-          </Button>
           <Button size="small" onClick={onDraw} disabled={deckCount === 0}>
             Draw 1
           </Button>
           <Button size="small" onClick={onDrawAll} disabled={deckCount === 0}>
             Draw All
           </Button>
+          <Button
+            size="small"
+            icon={<ArrowSyncRegular />}
+            onClick={onShuffle}
+            disabled={deckCount === 0}
+          >
+            Shuffle
+          </Button>
+          <Button
+            size="small"
+            icon={<ArrowResetRegular />}
+            onClick={onReset}
+            disabled={deckCount === 0 && handCount === 0 && discardCount === 0}
+          >
+            Reset
+          </Button>
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={(_e, data) => setOpen(data.open)}>
+      <Dialog open={drawOpen} onOpenChange={(_e, data) => setDrawOpen(data.open)}>
         <DialogSurface>
           <DialogBody>
             <DialogTitle>Draw from Deck</DialogTitle>
@@ -152,7 +181,7 @@ export function DeckZone({
                     className={styles.cardListItem}
                     onClick={() => {
                       onDrawSpecific(rowIndex);
-                      setOpen(false);
+                      setDrawOpen(false);
                     }}
                   >
                     <Text size={300}>{getCardLabel(row)}</Text>
@@ -161,7 +190,31 @@ export function DeckZone({
               </div>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={() => setDrawOpen(false)}>Cancel</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={discardOpen} onOpenChange={(_e, data) => setDiscardOpen(data.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Discard Pile</DialogTitle>
+            <DialogContent>
+              {discardCards.length === 0 ? (
+                <Text size={300}>No discarded cards</Text>
+              ) : (
+                <div className={styles.cardList}>
+                  {discardCards.map(({ rowIndex, row }) => (
+                    <div key={rowIndex} className={styles.cardListItem}>
+                      <Text size={300}>{getCardLabel(row)}</Text>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDiscardOpen(false)}>Close</Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>

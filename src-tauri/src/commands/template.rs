@@ -42,3 +42,19 @@ pub async fn write_template(deck_path: String, html: String, css: String) -> Res
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn read_canvas(deck_path: String) -> Result<String, String> {
+    let path = Path::new(&deck_path).join("canvas.json");
+    if path.exists() {
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read canvas.json: {}", e))
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+pub async fn write_canvas(deck_path: String, content: String) -> Result<(), String> {
+    let path = Path::new(&deck_path).join("canvas.json");
+    fs::write(&path, &content).map_err(|e| format!("Failed to write canvas.json: {}", e))
+}

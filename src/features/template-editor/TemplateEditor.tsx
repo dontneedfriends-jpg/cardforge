@@ -1,10 +1,10 @@
 import { ToggleButton, Tab, TabList, Dialog, DialogTrigger, DialogSurface, DialogBody, DialogTitle, DialogContent, Button, makeStyles, Text } from '@fluentui/react-components';
 import { CodeRegular, BorderNoneRegular, SaveRegular, ColorRegular } from '@fluentui/react-icons';
-import { useEditorStore } from '../../store';
+import { useEditorStore, useUiStore } from '../../store';
 import { CodeEditor } from './CodeEditor';
 import { VisualEditor } from './VisualEditor';
 import { CardBackEditor } from './CardBackEditor';
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useStyles = makeStyles({
   toolbar: {
@@ -13,17 +13,17 @@ const useStyles = makeStyles({
     height: '48px',
     minHeight: '48px',
     padding: '0 16px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    background: 'var(--mica-layer-1)',
+    borderBottom: '1px solid var(--mica-stroke)',
     alignItems: 'center',
   },
   modeButtons: {
     display: 'flex',
     gap: '4px',
     padding: '4px',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'var(--mica-layer-2)',
     borderRadius: '8px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    border: '1px solid var(--mica-stroke)',
   },
   dirtyDot: {
     width: '6px',
@@ -39,7 +39,7 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: '8px',
     fontSize: '12px',
-    color: 'rgba(255, 255, 255, 0.40)',
+    color: 'var(--mica-text-tertiary)',
   },
 });
 
@@ -56,6 +56,21 @@ export function TemplateEditor() {
   const [warnOpen, setWarnOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<'code' | 'visual' | null>(null);
   const [tab, setTab] = useState<string>('front');
+
+  // Auto-save
+  const autoSave = useUiStore((s) => s.autoSave);
+  const autoSaveInterval = useUiStore((s) => s.autoSaveInterval);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!autoSave || !isDirty) return;
+    timerRef.current = setTimeout(() => {
+      handleSave();
+    }, autoSaveInterval * 1000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [isDirty, autoSave, autoSaveInterval, tab]);
 
   const handleModeSwitch = (mode: 'code' | 'visual') => {
     if (mode === editorMode) return;
@@ -83,13 +98,13 @@ export function TemplateEditor() {
     setPendingMode(null);
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (tab === 'front') {
       await saveTemplate();
     } else {
       await saveCardBack();
     }
-  };
+  }, [tab, saveTemplate, saveCardBack]);
 
   const renderFrontEditor = () => {
     if (editorMode === 'code') return <CodeEditor />;
