@@ -1,4 +1,4 @@
-import { ToggleButton, Tab, TabList, Dialog, DialogTrigger, DialogSurface, DialogBody, DialogTitle, DialogContent, Button, makeStyles, Text } from '@fluentui/react-components';
+import { ToggleButton, Tab, TabList, Button, makeStyles, Text } from '@fluentui/react-components';
 import { CodeRegular, BorderNoneRegular, SaveRegular, ColorRegular } from '@fluentui/react-icons';
 import { useEditorStore, useUiStore } from '../../store';
 import { CodeEditor } from './CodeEditor';
@@ -47,14 +47,12 @@ export function TemplateEditor() {
   const styles = useStyles();
   const editorMode = useEditorStore((s) => s.editorMode);
   const setEditorMode = useEditorStore((s) => s.setEditorMode);
-  const html = useEditorStore((s) => s.html);
   const isDirty = useEditorStore((s) => s.isDirty);
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const syncCodeToVisual = useEditorStore((s) => s.syncCodeToVisual);
+  const currentCardSize = useEditorStore((s) => s.currentCardSize);
   const saveTemplate = useEditorStore((s) => s.saveTemplate);
   const saveCardBack = useEditorStore((s) => s.saveCardBack);
-  const [warnOpen, setWarnOpen] = useState(false);
-  const [pendingMode, setPendingMode] = useState<'code' | 'visual' | null>(null);
   const [tab, setTab] = useState<string>('front');
 
   // Auto-save
@@ -76,26 +74,15 @@ export function TemplateEditor() {
     if (mode === editorMode) return;
     
     if (mode === 'visual') {
-      if (html.trim().length > 0) {
-        setPendingMode('visual');
-        setWarnOpen(true);
-      } else {
-        syncCodeToVisual();
-        setEditorMode('visual');
-      }
-    } else {
-      syncVisualToCode({ widthMm: 63, heightMm: 88, bleedMm: 3 });
-      setEditorMode('code');
-    }
-  };
-
-  const confirmSwitch = () => {
-    setWarnOpen(false);
-    if (pendingMode === 'visual') {
+      // Code → Visual: парсим HTML в canvas элементы
       syncCodeToVisual();
       setEditorMode('visual');
+    } else {
+      // Visual → Code: генерируем HTML из canvas элементов
+      const cardSize = currentCardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
+      syncVisualToCode(cardSize);
+      setEditorMode('code');
     }
-    setPendingMode(null);
   };
 
   const handleSave = useCallback(async () => {
@@ -170,25 +157,6 @@ export function TemplateEditor() {
       </div>
 
       {tab === 'front' ? renderFrontEditor() : <CardBackEditor />}
-
-      <Dialog open={warnOpen} onOpenChange={(_e, data) => setWarnOpen(data.open)}>
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>Switch to Visual Editor?</DialogTitle>
-            <DialogContent>
-              Your HTML template will be parsed into visual elements.
-              Some manual HTML/CSS may not be fully represented in the visual editor.
-              The visual editor works best with simple, absolutely-positioned elements.
-            </DialogContent>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-              <DialogTrigger disableButtonEnhancement>
-                <Button>Cancel</Button>
-              </DialogTrigger>
-              <Button appearance="primary" onClick={confirmSwitch}>Switch Anyway</Button>
-            </div>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
     </div>
   );
 }

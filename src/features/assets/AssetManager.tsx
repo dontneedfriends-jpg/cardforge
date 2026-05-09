@@ -318,7 +318,17 @@ export function AssetManager() {
             {assets.map((asset) => (
               <Menu key={asset.name}>
                 <MenuTrigger disableButtonEnhancement>
-                  <div className={styles.card} title={asset.name}>
+                  <div
+                    className={styles.card}
+                    title={asset.name}
+                    draggable
+                    onDragStart={(e) => {
+                      const relativePath = asset.path.replace(`${projectPath}/`, '');
+                      e.dataTransfer.setData('elementType', 'image');
+                      e.dataTransfer.setData('assetPath', relativePath);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                  >
                     {asset.thumbnailBase64 ? (
                       <img 
                         src={asset.thumbnailBase64} 

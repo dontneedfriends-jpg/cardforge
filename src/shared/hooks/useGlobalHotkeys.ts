@@ -6,14 +6,21 @@ export function useGlobalHotkeys() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const isMonacoFocused = () => {
+      const el = document.activeElement;
+      return el?.closest('.monaco-editor') !== null;
+    };
+
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
-      // Ctrl+Z — undo (visual editor) or Monaco built-in (code editor)
+      // Skip canvas undo/redo if Monaco is focused (Monaco has its own undo/redo)
+      if (isMonacoFocused()) return;
+
+      // Ctrl+Z — undo (visual editor)
       if (ctrl && e.key === 'z' && !e.shiftKey) {
-        // Don't intercept if focus is in Monaco (it has its own undo)
         if (isInput) return;
         e.preventDefault();
         useCanvasStore.getState().undo();

@@ -386,28 +386,32 @@ npx tsc --noEmit
 
 ## Будущие улучшения
 
-- [x] Работающий WYSIWYG редактор (native DnD + react-rnd)
+### ✅ Реализовано
+- [x] WYSIWYG редактор (native DnD + react-rnd)
 - [x] Live preview с iframe srcdoc
-- [x] Visual↔Code синхронизация через canvasStore
+- [x] Visual↔Code синхронизация через canvasStore (canvas.json)
 - [x] Starter canvas templates: HTML+CSS → CanvasElement[] при загрузке колоды
 - [x] Симулятор с drag-to-move и fan layout
 - [x] Card Back Editor + сохранение в card_back.json
 - [x] 14 starter templates
-- [ ] Стабилизировать live sync без infinite loops (syncSource guard)
-- [ ] Сохранение/загрузка canvas state из папки колоды (canvas.json)
-- [ ] Удалить мёртвые файлы: serializer.ts, htmlParser.ts, withPosition.tsx, PositionedWrapper.tsx, EmptyState.tsx, DeckList.tsx
-- [x] Удалить неиспользуемые npm пакеты: @tanstack/router-devtools, use-debounce
-- [ ] Починить deckStore.saveData (относительный путь без projectPath)
-- [ ] Починить NavRail inline :hover (не работает в React style prop)
-- [ ] SVG иконки вместо Unicode
-- [ ] Drag & drop для ассетов
-- [ ] Undo/redo для Code режима
-- [ ] Темы (light/dark/system)
-- [x] Кастомные шрифты (загрузка .ttf/.otf, @font-face через base64, выбор в PropertiesPanel, рендеринг во всех контекстах)
+- [x] Сохранение/загрузка canvas state из папки колоды (canvas.json)
+- [x] Удаление мёртвых файлов (serializer.ts, htmlParser.ts, withPosition.tsx, PositionedWrapper.tsx, EmptyState.tsx, DeckList.tsx)
+- [x] Удаление неиспользуемых npm пакетов (@tanstack/router-devtools, use-debounce)
+- [x] Починка NavRail inline :hover (makeStyles)
+- [x] SVG иконки (23 иконки, inline SVG во всех контекстах)
+- [x] Drag & drop для ассетов (из AssetManager на Canvas → ImageElement)
+- [x] Undo/redo для Code режима (Monaco detection в global hotkeys)
+- [x] Темы (light/dark/system)
+- [x] Кастомные шрифты (.ttf/.otf, base64 @font-face, выбор в PropertiesPanel)
 - [x] PNG batch export (html-to-image + Rust export_png_batch)
-- [x] PDF с crop marks / bleed / page size (print-ready HTML)
+- [x] PDF с crop marks / bleed / page size
 - [x] Keyboard shortcuts (Ctrl+Z/Y, Ctrl+E, F5)
 - [x] TTS Spritesheet export (image crate + Rust compositing + JSON descriptor)
+- [x] TTS Import (парсинг .json, слайсинг спрайтшита, создание колоды)
+
+### 🔜 В плане
+- [ ] Стабилизировать live sync без infinite loops (syncSource guard)
+- [ ] Починить deckStore.saveData (относительный путь без projectPath)
 - [ ] Коллаборативное редактирование
 - [ ] Cloud sync
 - [ ] Marketplace шаблонов

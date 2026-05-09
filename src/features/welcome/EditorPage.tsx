@@ -1,5 +1,4 @@
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { ProjectSidebar } from '../project/ProjectSidebar';
 import { TemplateEditor } from '../template-editor/TemplateEditor';
 import { DataEditor } from '../data-editor/DataEditor';
 import { PreviewPanel } from '../preview/PreviewPanel';
@@ -33,35 +32,9 @@ export function EditorPage() {
     }
   })();
 
-  const showLeft = sidebarTab === 'decks' || sidebarTab === 'data' || sidebarTab === 'assets';
-
   return (
     <Group orientation="horizontal" style={{ height: '100%' }} resizeTargetMinimumSize={{ coarse: 30, fine: 20 }}>
-      {showLeft && (
-        <>
-          <Panel id="left" defaultSize={25} minSize={18}>
-            <div style={{ 
-              height: '100%', 
-              background: 'var(--mica-layer-1)',
-              backdropFilter: 'blur(40px)',
-              borderRight: '1px solid var(--mica-stroke)',
-              overflow: 'hidden',
-            }}>
-              <ProjectSidebar />
-            </div>
-          </Panel>
-          <Separator id="sep-left" style={{ 
-            width: 4, 
-            background: 'var(--mica-stroke-subtle)', 
-            zIndex: 1,
-            borderRadius: 2,
-            margin: '8px 0',
-            transition: 'background 0.2s ease',
-          }} />
-        </>
-      )}
-      
-      <Panel id="center" defaultSize={showLeft ? 45 : 70} minSize={30}>
+      <Panel id="center" defaultSize={70} minSize={30}>
         <div style={{ 
           height: '100%', 
           background: 'var(--mica-base)',
@@ -80,7 +53,7 @@ export function EditorPage() {
         transition: 'background 0.2s ease',
       }} />
       
-      <Panel id="right" defaultSize={showLeft ? 30 : 30} minSize={20}>
+      <Panel id="right" defaultSize={30} minSize={20}>
         <div style={{ 
           height: '100%', 
           background: 'var(--mica-layer-1)',

@@ -1,9 +1,18 @@
-import { makeStyles } from '@fluentui/react-components';
+import { makeStyles, Button, Tooltip } from '@fluentui/react-components';
+import {
+  ArrowUndoRegular,
+  ArrowRedoRegular,
+  CopyRegular,
+  DeleteRegular,
+  ZoomInRegular,
+  ZoomOutRegular,
+  ZoomFitRegular,
+} from '@fluentui/react-icons';
 import { Canvas } from './wysiwyg/Canvas';
 import { ElementPanel } from './wysiwyg/ElementPanel';
 import { PropertiesPanel } from './wysiwyg/PropertiesPanel';
 import { LayersPanel } from './wysiwyg/LayersPanel';
-import { useDeckStore } from '../../store';
+import { useDeckStore, useCanvasStore } from '../../store';
 
 const useStyles = makeStyles({
   container: {
@@ -36,12 +45,12 @@ const useStyles = makeStyles({
     background: 'var(--mica-layer-1)',
   },
   toolbar: {
-    height: '36px',
-    minHeight: '36px',
+    height: '32px',
+    minHeight: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 12px',
+    padding: '0 8px',
     borderBottom: '1px solid var(--mica-stroke)',
     background: 'var(--mica-layer-2)',
   },
@@ -51,6 +60,14 @@ export function VisualEditor() {
   const styles = useStyles();
   const deckData = useDeckStore((s) => s.deckData);
   const cardSize = deckData?.meta.cardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
+  
+  const selectedIds = useCanvasStore((s) => s.selectedIds);
+  const undo = useCanvasStore((s) => s.undo);
+  const redo = useCanvasStore((s) => s.redo);
+  const duplicateSelected = useCanvasStore((s) => s.duplicateSelected);
+  const deleteSelected = useCanvasStore((s) => s.deleteSelected);
+  const zoom = useCanvasStore((s) => s.zoom);
+  const setZoom = useCanvasStore((s) => s.setZoom);
 
   return (
     <div className={styles.container}>
@@ -63,6 +80,35 @@ export function VisualEditor() {
       <div className={styles.center}>
         <div className={styles.toolbar}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Canvas</span>
+          <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <Tooltip content="Undo (Ctrl+Z)" relationship="label">
+              <Button icon={<ArrowUndoRegular />} size="small" appearance="subtle" onClick={undo} />
+            </Tooltip>
+            <Tooltip content="Redo (Ctrl+Y)" relationship="label">
+              <Button icon={<ArrowRedoRegular />} size="small" appearance="subtle" onClick={redo} />
+            </Tooltip>
+            <div style={{ width: '1px', height: '16px', background: 'var(--mica-stroke)', margin: '0 4px' }} />
+            <Tooltip content={`Duplicate (${selectedIds.length > 1 ? selectedIds.length + ' items' : 'Ctrl+D'})`} relationship="label">
+              <Button icon={<CopyRegular />} size="small" appearance="subtle" onClick={duplicateSelected} disabled={selectedIds.length === 0} />
+            </Tooltip>
+            <Tooltip content={`Delete (${selectedIds.length > 1 ? selectedIds.length + ' items' : 'Del'})`} relationship="label">
+              <Button icon={<DeleteRegular />} size="small" appearance="subtle" onClick={deleteSelected} disabled={selectedIds.length === 0} />
+            </Tooltip>
+          </div>
+          <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <Tooltip content="Zoom Out (Ctrl+-)" relationship="label">
+              <Button icon={<ZoomOutRegular />} size="small" appearance="subtle" onClick={() => setZoom(zoom - 0.1)} />
+            </Tooltip>
+            <span style={{ fontSize: '11px', color: 'var(--mica-text-secondary)', minWidth: '40px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+              {Math.round(zoom * 100)}%
+            </span>
+            <Tooltip content="Zoom In (Ctrl++)" relationship="label">
+              <Button icon={<ZoomInRegular />} size="small" appearance="subtle" onClick={() => setZoom(zoom + 0.1)} />
+            </Tooltip>
+            <Tooltip content="Reset Zoom (Ctrl+0)" relationship="label">
+              <Button icon={<ZoomFitRegular />} size="small" appearance="subtle" onClick={() => setZoom(1)} />
+            </Tooltip>
+          </div>
         </div>
         <Canvas 
           widthMm={cardSize.widthMm} 

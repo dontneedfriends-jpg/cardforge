@@ -99,7 +99,15 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     if (get().syncSource === 'code') return;
 
     const elements = useCanvasStore.getState().elements;
-    const { html, css } = elementsToTemplate(elements, cardSize);
+    
+    // Если canvas пустой — не перезаписываем HTML (сохраняем оригинал)
+    if (elements.length === 0) {
+      console.warn('[Sync] Canvas is empty, skipping HTML generation to preserve original template.');
+      return;
+    }
+    
+    const { css: existingCss } = get();
+    const { html, css } = elementsToTemplate(elements, cardSize, existingCss);
     // Помечаем источник ПЕРЕД записью, чтобы CodeEditor не перепарсил обратно
     set({ syncSource: 'visual', html, css, isDirty: true });
     // Сбрасываем флаг в следующем микротаске — после того как все подписчики получат обновление
@@ -107,18 +115,31 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   },
 
   syncCodeToVisual: () => {
+    console.log('[syncCodeToVisual] START');
     // Если сейчас идёт синхронизация visual→code — не реагируем, иначе цикл
-    if (get().syncSource === 'visual') return;
+    if (get().syncSource === 'visual') {
+      console.log('[syncCodeToVisual] Skipped: syncSource is visual');
+      return;
+    }
 
-    const { html, css } = get();
+    const { html, css, currentCardSize } = get();
+    console.log('[syncCodeToVisual] html length:', html?.length, 'css length:', css?.length);
     set({ syncSource: 'code' });
 
     if (!html.trim()) {
+      console.log('[syncCodeToVisual] HTML empty, clearing canvas');
       useCanvasStore.getState().clearCanvas();
     } else {
-      const elements = parseTemplateToElements(html, css);
+      const cardSize = currentCardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
+      console.log('[syncCodeToVisual] Parsing with cardSize:', cardSize);
+      const elements = parseTemplateToElements(html, css, cardSize);
+      console.log('[syncCodeToVisual] Parsed elements:', elements?.length, elements?.map(e => ({id: e.id, type: e.type, hasSourceHtml: !!e.meta?.sourceHtml})));
       if (elements) {
         useCanvasStore.getState().setElements(elements);
+      } else {
+        // Не удалось распарсить — оставляем canvas пустым, но НЕ меняем HTML
+        console.warn('[Sync] Could not parse template to visual elements. Template may use unsupported layout.');
+        useCanvasStore.getState().clearCanvas();
       }
     }
 

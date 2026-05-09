@@ -1,24 +1,24 @@
-import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview } from '@fluentui/react-components';
-import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, type FluentIcon } from '@fluentui/react-icons';
+import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview, MessageBar, MessageBarBody } from '@fluentui/react-components';
+import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, BoardRegular, type FluentIcon } from '@fluentui/react-icons';
 import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../../store';
-import { readDir } from '@tauri-apps/plugin-fs';
+import { readDir, readFile } from '@tauri-apps/plugin-fs';
 import { useEffect, useState } from 'react';
 import { cardTemplates, type CardTemplate } from '../../shared/templates/cardTemplates';
 import { CARD_SIZE_PRESETS } from '../../shared/cardSizes';
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 
-const useStyles = makeStyles({
+  const useStyles = makeStyles({
   container: {
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
     overflow: 'auto',
-    background: 'var(--mica-base)',
   },
   header: {
-    height: '48px',
-    minHeight: '48px',
-    padding: '0 16px',
+    height: '36px',
+    minHeight: '36px',
+    padding: '0 12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -85,6 +85,10 @@ export function ProjectSidebar() {
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CardTemplate | null>(null);
   const [deckName, setDeckName] = useState('');
+  const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
+  const [ttsInfo, setTtsInfo] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
 
   const activeDeck = manifest?.decks.find(d => d.id === activeDeckId);
 
@@ -121,13 +125,25 @@ export function ProjectSidebar() {
     if (newDeck) {
       const deckPath = `${projectPath}/${newDeck.path}`;
       
-      // Create template files
+        // Create template files
       try {
         await invoke('write_template', { 
           deckPath, 
           html: selectedTemplate?.html ?? '<div class="card-root" style="position:relative;width:100%;height:100%;"></div>', 
           css: selectedTemplate?.css ?? '.card-root { width: 100%; height: 100%; }' 
         });
+
+        // Create initial canvas.json with a raw container showing the template
+        const cardPxW = (selectedTemplate?.cardSize.widthMm ?? 63) * 3;
+        const cardPxH = (selectedTemplate?.cardSize.heightMm ?? 88) * 3;
+        const rawElements = [{
+          id: 'raw_template_container',
+          type: 'container',
+          x: 0, y: 0, width: cardPxW, height: cardPxH,
+          rotation: 0, opacity: 1, zIndex: 0, visible: true,
+          props: { rawHtml: selectedTemplate?.html ?? '', rawCss: selectedTemplate?.css ?? '' },
+        }];
+        await invoke('write_canvas', { deckPath, content: JSON.stringify(rawElements) });
         
         // Create CSV with sample data
         if (selectedTemplate && selectedTemplate.sampleData.length > 0) {
@@ -157,6 +173,90 @@ export function ProjectSidebar() {
     setDeckName('');
   };
 
+  const handleImportTts = async () => {
+    if (!projectPath) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'TTS Save Object', extensions: ['json'] }],
+      });
+      if (!selected) return;
+
+      setImportStatus('Parsing TTS JSON...');
+      const info = await invoke<any>('parse_tts_json', { ttsJsonPath: selected });
+      setTtsInfo(info);
+      setIsTtsDialogOpen(true);
+      setImportStatus('');
+    } catch (e: any) {
+      setImportStatus(`Error: ${e?.toString() || e}`);
+    }
+  };
+
+  const handleConfirmTtsImport = async () => {
+    if (!projectPath || !ttsInfo) return;
+    setImporting(true);
+    setImportStatus('Downloading spritesheet...');
+
+    try {
+      let spritesheetData: Uint8Array;
+      let backData: Uint8Array;
+
+      // Download or select face image
+      if (ttsInfo.faceUrl && ttsInfo.faceUrl.startsWith('http')) {
+        const resp = await fetch(ttsInfo.faceUrl);
+        const buf = await resp.arrayBuffer();
+        spritesheetData = new Uint8Array(buf);
+      } else {
+        const imgPath = await open({
+          multiple: false,
+          filters: [{ name: 'Spritesheet Image', extensions: ['png', 'jpg', 'jpeg'] }],
+          title: 'Select spritesheet image file',
+        });
+        if (!imgPath) { setImporting(false); return; }
+        const buf = await readFile(imgPath);
+        spritesheetData = new Uint8Array(buf);
+      }
+
+      // Download or select back image  
+      if (ttsInfo.backUrl && ttsInfo.backUrl.startsWith('http')) {
+        const resp = await fetch(ttsInfo.backUrl);
+        const buf = await resp.arrayBuffer();
+        backData = new Uint8Array(buf);
+      } else {
+        backData = spritesheetData; // fallback: use face sheet as back
+      }
+
+      setImportStatus('Slicing spritesheet and creating deck...');
+      const result = await invoke<any>('slice_tts_spritesheet', {
+        projectPath,
+        deckName: ttsInfo.deckName,
+        spritesheetData: Array.from(spritesheetData),
+        backData: Array.from(backData),
+        numWidth: ttsInfo.numWidth,
+        numHeight: ttsInfo.numHeight,
+        cardNames: ttsInfo.cardNames,
+      });
+
+      // Add deck to manifest and select it
+      const cardSize = { widthMm: 63, heightMm: 88, bleedMm: 3 };
+      addDeck(ttsInfo.deckName, cardSize);
+
+      // Select the new deck
+      const updatedManifest = useProjectStore.getState().manifest;
+      const newDeck = updatedManifest?.decks.find(d => d.name === ttsInfo.deckName);
+      if (newDeck) {
+        await handleSelectDeck(newDeck);
+      }
+
+      setIsTtsDialogOpen(false);
+      setTtsInfo(null);
+      setImportStatus(`Imported ${result.cardCount} cards from TTS`);
+    } catch (e: any) {
+      setImportStatus(`Import error: ${e?.toString() || e}`);
+    }
+    setImporting(false);
+  };
+
   if (!manifest) {
     return (
       <div className={styles.container}>
@@ -173,15 +273,26 @@ export function ProjectSidebar() {
   return (
     <>
       <div className={styles.container}>
-        <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text size={400} weight="semibold">{manifest.name}</Text>
-          <Button 
-            icon={<AddRegular />} 
-            size="small" 
-            onClick={() => setIsTemplateDialogOpen(true)}
-          >
-            New Deck
-          </Button>
+        <div className={styles.header}>
+          <Text size={300} weight="semibold">Decks</Text>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <Button
+              icon={<BoardRegular />}
+              size="small"
+              onClick={(e) => { e.stopPropagation(); handleImportTts(); }}
+              disabled={importing}
+              title="Import from TTS save file"
+            >
+              TTS
+            </Button>
+            <Button 
+              icon={<AddRegular />} 
+              size="small" 
+              onClick={() => setIsTemplateDialogOpen(true)}
+            >
+              New
+            </Button>
+          </div>
         </div>
         {manifest.decks.map((deck) => (
           <div key={deck.id}>
@@ -273,6 +384,59 @@ export function ProjectSidebar() {
                 disabled={!selectedTemplate || !deckName.trim()}
               >
                 Create Deck
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={isTtsDialogOpen} onOpenChange={(_, d) => { if (!importing) setIsTtsDialogOpen(d.open); }}>
+        <DialogSurface style={{ maxWidth: 500 }}>
+          <DialogBody>
+            <DialogTitle>Import TTS Deck</DialogTitle>
+            <DialogContent>
+              {ttsInfo && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <Text weight="semibold">Deck:</Text>
+                    <Text> {ttsInfo.deckName}</Text>
+                  </div>
+                  <div>
+                    <Text weight="semibold">Cards:</Text>
+                    <Text> {ttsInfo.cardCount}</Text>
+                  </div>
+                  <div>
+                    <Text weight="semibold">Grid:</Text>
+                    <Text> {ttsInfo.numWidth}×{ttsInfo.numHeight}</Text>
+                  </div>
+                  {ttsInfo.faceUrl && (
+                    <div>
+                      <Text weight="semibold">Face URL:</Text>
+                      <Text size={200}> {ttsInfo.faceUrl.length > 60 ? ttsInfo.faceUrl.substring(0, 60) + '…' : ttsInfo.faceUrl}</Text>
+                    </div>
+                  )}
+                  {ttsInfo.cardNames.length > 0 && (
+                    <div>
+                      <Text weight="semibold">Card Names:</Text>
+                      <div style={{ maxHeight: 120, overflow: 'auto', marginTop: 4, fontSize: 12, opacity: 0.8 }}>
+                        {ttsInfo.cardNames.map((n: string, i: number) => (
+                          <div key={i}>{i + 1}. {n}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {importStatus && (
+                <MessageBar intent={importStatus.startsWith('Error') || importStatus.startsWith('Import error') ? 'error' : 'info'} style={{ marginTop: 12 }}>
+                  <MessageBarBody>{importStatus}</MessageBarBody>
+                </MessageBar>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setIsTtsDialogOpen(false)} disabled={importing}>Cancel</Button>
+              <Button appearance="primary" onClick={handleConfirmTtsImport} disabled={importing || !ttsInfo}>
+                {importing ? 'Importing...' : 'Import Deck'}
               </Button>
             </DialogActions>
           </DialogBody>

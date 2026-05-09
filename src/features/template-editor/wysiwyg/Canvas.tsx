@@ -15,6 +15,7 @@ import { FieldBadge } from './elements/FieldBadge';
 import { ContainerElement } from './elements/ContainerElement';
 import { AssetPickerDialog } from '../../assets/AssetPickerDialog';
 import { assetPathToRelative } from '../../../shared/utils/assetPath';
+import { ContextMenu } from '../../../shared/components/ContextMenu';
 
 const useStyles = makeStyles({
   container: {
@@ -61,13 +62,35 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    targetElement: null as string | null,
+  });
   const [pendingImageElement, setPendingImageElement] = useState<CanvasElement | null>(null);
   const elements = useCanvasStore((state) => state.elements);
   const selectedId = useCanvasStore((state) => state.selectedId);
+  const selectedIds = useCanvasStore((state) => state.selectedIds);
   const addElement = useCanvasStore((state) => state.addElement);
   const selectElement = useCanvasStore((state) => state.selectElement);
+  const toggleSelection = useCanvasStore((state) => state.toggleSelection);
+  const clearSelection = useCanvasStore((state) => state.clearSelection);
   const moveElement = useCanvasStore((state) => state.moveElement);
   const resizeElement = useCanvasStore((state) => state.resizeElement);
+  const deleteElement = useCanvasStore((state) => state.deleteElement);
+  const undo = useCanvasStore((state) => state.undo);
+  const redo = useCanvasStore((state) => state.redo);
+  const duplicateElement = useCanvasStore((state) => state.duplicateElement);
+  const duplicateSelected = useCanvasStore((state) => state.duplicateSelected);
+  const deleteSelected = useCanvasStore((state) => state.deleteSelected);
+  const copyElement = useCanvasStore((state) => state.copyElement);
+  const copySelected = useCanvasStore((state) => state.copySelected);
+  const pasteElement = useCanvasStore((state) => state.pasteElement);
+  const reorderElement = useCanvasStore((state) => state.reorderElement);
+  const clearCanvas = useCanvasStore((state) => state.clearCanvas);
+  const zoom = useCanvasStore((state) => state.zoom);
+  const setZoom = useCanvasStore((state) => state.setZoom);
 
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const editorMode = useEditorStore((s) => s.editorMode);
@@ -99,6 +122,8 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
 
   const cardW = mmToPx(widthMm);
   const cardH = mmToPx(heightMm);
+  
+  console.log('[Canvas] elements count:', elements.length, 'card size:', cardW, 'x', cardH, 'elements:', elements.map(e => ({id: e.id, type: e.type, hasSourceHtml: !!e.meta?.sourceHtml, hasRawHtml: !!e.props?.rawHtml})));
 
   // Нативные обработчики на document для обхода react-rnd
   useEffect(() => {
@@ -126,8 +151,37 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
       setIsDragOver(false);
       if (!isOverCanvas(e)) return;
 
-      const type = (e.dataTransfer?.getData('elementType') || e.dataTransfer?.getData('text/plain')) as CanvasElement['type'];
-      if (!type) return;
+      const dt = e.dataTransfer;
+      if (!dt) return;
+
+      // Check if an asset is being dropped (drag from AssetManager)
+      const assetPath = dt.getData('assetPath');
+      if (assetPath) {
+        const rect = getCanvasRect();
+        if (!rect) return;
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const newElement: CanvasElement = {
+          id: `el_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'image',
+          x: x - 50,
+          y: y - 50,
+          width: 100,
+          height: 100,
+          rotation: 0,
+          opacity: 1,
+          zIndex: elementsLengthRef.current,
+          visible: true,
+          props: { src: assetPath, fieldName: '', isField: false },
+        };
+        addElementRef.current(newElement);
+        setTimeout(() => syncIfVisual(), 0);
+        return;
+      }
+
+      const rawType = dt.getData('elementType') || dt.getData('text/plain');
+      if (!rawType) return;
+      const type = rawType as CanvasElement['type'];
 
       const rect = getCanvasRect();
       if (!rect) return;
@@ -196,11 +250,175 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === canvasRef.current) {
-        selectElement(null);
+        clearSelection();
+      }
+    },
+    [clearSelection]
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Check if clicked on an element
+      const target = e.target as HTMLElement;
+      const elementNode = target.closest('[data-element-id]');
+      const elementId = elementNode?.getAttribute('data-element-id') || null;
+      
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        targetElement: elementId,
+      });
+      
+      if (elementId) {
+        selectElement(elementId);
       }
     },
     [selectElement]
   );
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const step = e.shiftKey ? 10 : 1;
+
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          if (selectedIds.length > 0) {
+            e.preventDefault();
+            deleteSelected();
+            syncIfVisual();
+          }
+          break;
+        case 'ArrowUp':
+          if (selectedIds.length > 0) {
+            e.preventDefault();
+            if (selectedIds.length === 1) {
+              const el = elements.find((x) => x.id === selectedId);
+              if (el) moveElement(selectedId!, el.x, el.y - step);
+            } else {
+              // Move all selected
+              selectedIds.forEach((id) => {
+                const el = elements.find((x) => x.id === id);
+                if (el) moveElement(id, el.x, el.y - step);
+              });
+            }
+            syncIfVisual();
+          }
+          break;
+        case 'ArrowDown':
+          if (selectedIds.length > 0) {
+            e.preventDefault();
+            if (selectedIds.length === 1) {
+              const el = elements.find((x) => x.id === selectedId);
+              if (el) moveElement(selectedId!, el.x, el.y + step);
+            } else {
+              selectedIds.forEach((id) => {
+                const el = elements.find((x) => x.id === id);
+                if (el) moveElement(id, el.x, el.y + step);
+              });
+            }
+            syncIfVisual();
+          }
+          break;
+        case 'ArrowLeft':
+          if (selectedIds.length > 0) {
+            e.preventDefault();
+            if (selectedIds.length === 1) {
+              const el = elements.find((x) => x.id === selectedId);
+              if (el) moveElement(selectedId!, el.x - step, el.y);
+            } else {
+              selectedIds.forEach((id) => {
+                const el = elements.find((x) => x.id === id);
+                if (el) moveElement(id, el.x - step, el.y);
+              });
+            }
+            syncIfVisual();
+          }
+          break;
+        case 'ArrowRight':
+          if (selectedIds.length > 0) {
+            e.preventDefault();
+            if (selectedIds.length === 1) {
+              const el = elements.find((x) => x.id === selectedId);
+              if (el) moveElement(selectedId!, el.x + step, el.y);
+            } else {
+              selectedIds.forEach((id) => {
+                const el = elements.find((x) => x.id === id);
+                if (el) moveElement(id, el.x + step, el.y);
+              });
+            }
+            syncIfVisual();
+          }
+          break;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            syncIfVisual();
+            break;
+          case 'y':
+            e.preventDefault();
+            redo();
+            syncIfVisual();
+            break;
+          case 'd':
+            e.preventDefault();
+            if (selectedIds.length > 0) {
+              duplicateSelected();
+              syncIfVisual();
+            }
+            break;
+          case 'c':
+            e.preventDefault();
+            if (selectedIds.length > 0) {
+              copySelected();
+            }
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteElement();
+            syncIfVisual();
+            break;
+        }
+      }
+
+      // Zoom with Ctrl + +/-
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          setZoom(zoom + 0.1);
+        } else if (e.key === '-') {
+          e.preventDefault();
+          setZoom(zoom - 0.1);
+        } else if (e.key === '0') {
+          e.preventDefault();
+          setZoom(1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, selectedIds, elements, deleteSelected, deleteElement, undo, redo, duplicateSelected, duplicateElement, moveElement, syncIfVisual, copySelected, copyElement, pasteElement, zoom, setZoom]);
 
   return (
     <div className={styles.container}>
@@ -220,14 +438,38 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
               `
             : '#1a1a2e',
           backgroundSize: showGrid ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, 100% 100%` : undefined,
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top left',
         }}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
       >
         {elements.map((el) => {
           const Component = elementMap[el.type];
           if (!Component) return null;
 
-          const isSelected = selectedId === el.id;
+          if (el.props?.rawHtml) {
+            return (
+              <div
+                key={el.id}
+                data-element-id={el.id}
+                style={{
+                  position: 'absolute',
+                  left: el.x,
+                  top: el.y,
+                  width: el.width,
+                  height: el.height,
+                  zIndex: el.zIndex,
+                  overflow: 'hidden',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Component {...el.props} meta={el.meta} />
+              </div>
+            );
+          }
+
+          const isSelected = selectedIds.includes(el.id);
 
           return (
             <Rnd
@@ -240,6 +482,7 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
               }}
               position={{ x: el.x, y: el.y }}
               size={{ width: el.width, height: el.height }}
+              scale={zoom}
               onDragStop={(_e, d) => {
                 const x = snapToGrid ? Math.round(d.x / gridSize) * gridSize : d.x;
                 const y = snapToGrid ? Math.round(d.y / gridSize) * gridSize : d.y;
@@ -259,7 +502,11 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
-                selectElement(el.id);
+                if (e.ctrlKey || e.metaKey) {
+                  toggleSelection(el.id);
+                } else {
+                  selectElement(el.id);
+                }
               }}
               bounds="parent"
               style={{
@@ -268,11 +515,11 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
                 transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
               }}
               className={isSelected ? styles.selected : ''}
-              enableResizing={isSelected}
-              disableDragging={!isSelected}
+              enableResizing={isSelected && selectedIds.length === 1}
+              disableDragging={!isSelected || selectedIds.length > 1}
             >
-              <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
-                <Component {...el.props} />
+              <div data-element-id={el.id} style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
+                <Component {...el.props} meta={el.meta} />
               </div>
             </Rnd>
           );
@@ -299,6 +546,73 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
           }
         }}
         title="Select Image for Card"
+      />
+
+      <ContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={handleCloseContextMenu}
+        items={
+          contextMenu.targetElement
+            ? [
+                {
+                  label: 'Duplicate',
+                  action: () => {
+                    duplicateElement(contextMenu.targetElement!);
+                    syncIfVisual();
+                  },
+                },
+                {
+                  label: 'Copy',
+                  action: () => copyElement(contextMenu.targetElement!),
+                },
+                { label: '', action: () => {}, separator: true },
+                {
+                  label: 'Bring to Front',
+                  action: () => {
+                    reorderElement(contextMenu.targetElement!, 'top');
+                    syncIfVisual();
+                  },
+                },
+                {
+                  label: 'Send to Back',
+                  action: () => {
+                    reorderElement(contextMenu.targetElement!, 'bottom');
+                    syncIfVisual();
+                  },
+                },
+                { label: '', action: () => {}, separator: true },
+                {
+                  label: 'Delete',
+                  action: () => {
+                    deleteElement(contextMenu.targetElement!);
+                    syncIfVisual();
+                  },
+                },
+              ]
+            : [
+                {
+                  label: 'Paste',
+                  action: () => {
+                    pasteElement();
+                    syncIfVisual();
+                  },
+                  disabled: !useCanvasStore.getState().clipboard,
+                },
+                { label: '', action: () => {}, separator: true },
+                {
+                  label: 'Clear Canvas',
+                  action: () => {
+                    if (confirm('Delete all elements?')) {
+                      clearCanvas();
+                      syncIfVisual();
+                    }
+                  },
+                  disabled: elements.length === 0,
+                },
+              ]
+        }
       />
     </div>
   );

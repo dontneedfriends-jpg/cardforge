@@ -4,10 +4,38 @@ export interface ContainerElementProps {
   borderWidth: number;
   borderColor: string;
   padding: number;
+  rawHtml: string;
+  rawCss: string;
+  meta?: {
+    sourceHtml?: string;
+  };
 }
 
 export function ContainerElement(props: Partial<ContainerElementProps>) {
-  const { background, borderRadius, borderWidth, borderColor, padding } = props;
+  const { background, borderRadius, borderWidth, borderColor, padding, rawHtml, rawCss, meta } = props;
+
+  const htmlContent = rawHtml || meta?.sourceHtml;
+
+  console.log('[ContainerElement] htmlContent length:', htmlContent?.length, 'hasMeta:', !!meta, 'hasSourceHtml:', !!meta?.sourceHtml);
+
+  if (htmlContent) {
+    const styleContent = rawCss || '';
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          position: 'relative',
+          boxSizing: 'border-box',
+        }}
+      >
+        {styleContent && <style>{styleContent}</style>}
+        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{

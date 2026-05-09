@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { FluentProvider, webLightTheme, webDarkTheme } from '@fluentui/react-components';
 import { NavRail } from './shared/components/NavRail';
+import { TitleBar } from './shared/components/TitleBar';
 import { WelcomePage } from './features/welcome/WelcomePage';
 import { EditorPage } from './features/welcome/EditorPage';
 import { SimulatorPage } from './features/simulator/SimulatorPage';
@@ -20,24 +21,28 @@ function Shell() {
         className="mica-backdrop"
         style={{ 
           display: 'flex', 
+          flexDirection: 'column',
           height: '100vh', 
           overflow: 'hidden',
           position: 'relative',
         }}
       >
-        {/* Background layer */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'var(--mica-base)',
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-        <NavRail />
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-          <Outlet />
+        <TitleBar />
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {/* Background layer */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'var(--mica-base)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+          <NavRail />
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+            <Outlet />
+          </div>
         </div>
       </div>
     </FluentProvider>
