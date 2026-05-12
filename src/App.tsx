@@ -17,7 +17,7 @@ export default function App() {
     if (projectPath) {
       openProject(projectPath).catch(() => {});
     }
-  }, []);
+  }, [projectPath]);
 
   useEffect(() => {
     if (projectPath) {

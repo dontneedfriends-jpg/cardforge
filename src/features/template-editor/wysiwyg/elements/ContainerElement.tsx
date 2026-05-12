@@ -16,8 +16,6 @@ export function ContainerElement(props: Partial<ContainerElementProps>) {
 
   const htmlContent = rawHtml || meta?.sourceHtml;
 
-  console.log('[ContainerElement] htmlContent length:', htmlContent?.length, 'hasMeta:', !!meta, 'hasSourceHtml:', !!meta?.sourceHtml);
-
   if (htmlContent) {
     const styleContent = rawCss || '';
     return (
@@ -25,13 +23,16 @@ export function ContainerElement(props: Partial<ContainerElementProps>) {
         style={{
           width: '100%',
           height: '100%',
-          overflow: 'hidden',
+          overflow: 'visible',
           position: 'relative',
           boxSizing: 'border-box',
         }}
       >
         {styleContent && <style>{styleContent}</style>}
-        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+        <div
+          style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
       </div>
     );
   }

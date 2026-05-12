@@ -7,8 +7,61 @@ use std::path::Path;
 pub struct AssetInfo {
     pub name: String,
     pub path: String,
+    pub relative_path: String,
     pub size_bytes: u64,
     pub thumbnail_base64: Option<String>,
+    pub is_folder: bool,
+}
+
+fn list_assets_recursive(
+    dir: &Path,
+    project_path: &Path,
+    relative_prefix: &str,
+) -> Result<Vec<AssetInfo>, String> {
+    let mut assets = Vec::new();
+    let entries = fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let relative_path = if relative_prefix.is_empty() {
+            format!("assets/{}", name)
+        } else {
+            format!("{}/{}", relative_prefix, name)
+        };
+
+        if path.is_dir() {
+            // Add folder as an item
+            assets.push(AssetInfo {
+                name: name.clone(),
+                path: path.to_string_lossy().to_string(),
+                relative_path: relative_path.clone(),
+                size_bytes: 0,
+                thumbnail_base64: None,
+                is_folder: true,
+            });
+            // Recursively list contents
+            let mut children = list_assets_recursive(&path, project_path, &relative_path)?;
+            assets.append(&mut children);
+        } else {
+            let metadata = fs::metadata(&path)
+                .map_err(|e| format!("Failed to read metadata: {}", e))?;
+            let thumbnail_base64 = generate_thumbnail(&path);
+            
+            assets.push(AssetInfo {
+                name,
+                path: path.to_string_lossy().to_string(),
+                relative_path,
+                size_bytes: metadata.len(),
+                thumbnail_base64,
+                is_folder: false,
+            });
+        }
+    }
+
+    Ok(assets)
 }
 
 #[tauri::command]
@@ -18,30 +71,29 @@ pub async fn list_assets(project_path: String) -> Result<Vec<AssetInfo>, String>
         return Ok(vec![]);
     }
 
-    let mut assets = Vec::new();
-    let entries = fs::read_dir(&assets_dir)
-        .map_err(|e| format!("Failed to read assets directory: {}", e))?;
+    list_assets_recursive(&assets_dir, Path::new(&project_path), "assets")
+}
 
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-        let path = entry.path();
-        if path.is_file() {
-            let metadata = fs::metadata(&path)
-                .map_err(|e| format!("Failed to read metadata: {}", e))?;
-            
-            // Generate base64 thumbnail for images
-            let thumbnail_base64 = generate_thumbnail(&path);
-            
-            assets.push(AssetInfo {
-                name: entry.file_name().to_string_lossy().to_string(),
-                path: path.to_string_lossy().to_string(),
-                size_bytes: metadata.len(),
-                thumbnail_base64,
-            });
-        }
-    }
+#[tauri::command]
+pub async fn create_asset_folder(project_path: String, folder_path: String) -> Result<(), String> {
+    let full_path = Path::new(&project_path).join(&folder_path);
+    fs::create_dir_all(&full_path)
+        .map_err(|e| format!("Failed to create folder: {}", e))?;
+    Ok(())
+}
 
-    Ok(assets)
+#[tauri::command]
+pub async fn delete_asset_folder(folder_path: String) -> Result<(), String> {
+    fs::remove_dir_all(&folder_path)
+        .map_err(|e| format!("Failed to delete folder: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn move_asset(source_path: String, dest_path: String) -> Result<(), String> {
+    fs::rename(&source_path, &dest_path)
+        .map_err(|e| format!("Failed to move asset: {}", e))?;
+    Ok(())
 }
 
 fn generate_thumbnail(path: &Path) -> Option<String> {
@@ -73,10 +125,32 @@ fn generate_thumbnail(path: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-pub async fn import_asset(project_path: String, source_path: String) -> Result<AssetInfo, String> {
-    let source = Path::new(&source_path);
+pub async fn import_asset(project_path: String, source_path: String, target_folder: Option<String>) -> Result<AssetInfo, String> {
+    eprintln!("[import_asset] project_path={}", project_path);
+    eprintln!("[import_asset] source_path={}", source_path);
+    eprintln!("[import_asset] target_folder={:?}", target_folder);
+
+    // Нормализуем source_path: убираем file:// префикс если есть (Tauri dialog иногда возвращает его)
+    let clean_source = source_path
+        .strip_prefix("file:///")
+        .map(|s| {
+            // На Windows file:///C:/... → C:/...
+            if s.len() > 2 && s.chars().nth(1) == Some(':') {
+                s.to_string()
+            } else {
+                format!("/{}", s)
+            }
+        })
+        .unwrap_or_else(|| source_path.clone());
+
+    let source = Path::new(&clean_source);
+
+    if !source.exists() {
+        return Err(format!("Source file does not exist: {}", clean_source));
+    }
+
     let file_name = source.file_name()
-        .ok_or_else(|| "Invalid source path".to_string())?
+        .ok_or_else(|| format!("Invalid source path, no filename: {}", clean_source))?
         .to_string_lossy()
         .to_string();
 
@@ -85,28 +159,49 @@ pub async fn import_asset(project_path: String, source_path: String) -> Result<A
         .unwrap_or("")
         .to_lowercase();
 
-    // Font files go to assets/fonts/, images to assets/
-    let dest = if ext == "ttf" || ext == "otf" {
-        Path::new(&project_path).join("assets").join("fonts").join(&file_name)
+    // Determine target: provided folder or default to "assets"
+    // target_folder is always a relative path like "assets" or "assets/icons"
+    let target = target_folder.unwrap_or_else(|| "assets".to_string());
+    
+    // Font files always go to assets/fonts/
+    let (dest, relative_path) = if ext == "ttf" || ext == "otf" {
+        let d = Path::new(&project_path).join("assets").join("fonts").join(&file_name);
+        let r = format!("assets/fonts/{}", file_name);
+        (d, r)
     } else {
-        Path::new(&project_path).join("assets").join(&file_name)
+        // target is relative — join to project_path
+        let d = Path::new(&project_path).join(&target).join(&file_name);
+        let r = format!("{}/{}", target, file_name);
+        (d, r)
     };
 
-    fs::create_dir_all(dest.parent().unwrap())
-        .map_err(|e| format!("Failed to create directory: {}", e))?;
-    fs::copy(source, &dest)
-        .map_err(|e| format!("Failed to copy asset: {}", e))?;
+    eprintln!("[import_asset] dest={:?}", dest);
+    eprintln!("[import_asset] relative_path={}", relative_path);
+
+    // Ensure destination directory exists
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+        eprintln!("[import_asset] Created directory: {:?}", parent);
+    }
+
+    // Copy file
+    let bytes_copied = fs::copy(source, &dest)
+        .map_err(|e| format!("Failed to copy '{}' to '{:?}': {}", clean_source, dest, e))?;
+    eprintln!("[import_asset] Copied {} bytes", bytes_copied);
 
     let metadata = fs::metadata(&dest)
-        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+        .map_err(|e| format!("Failed to read metadata after copy: {}", e))?;
 
     let thumbnail_base64 = generate_thumbnail(&dest);
 
     Ok(AssetInfo {
         name: file_name,
         path: dest.to_string_lossy().to_string(),
+        relative_path,
         size_bytes: metadata.len(),
         thumbnail_base64,
+        is_folder: false,
     })
 }
 

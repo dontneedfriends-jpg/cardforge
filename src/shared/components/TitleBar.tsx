@@ -58,11 +58,10 @@ export function TitleBar() {
         userSelect: 'none',
         position: 'relative',
         zIndex: 1000,
+        cursor: 'default',
       }}
     >
-      {/* Левая часть: лого + имя проекта — перетаскивает окно */}
       <div
-        data-tauri-drag-region
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -112,9 +111,11 @@ export function TitleBar() {
         )}
       </div>
 
-      {/* Правая часть: кнопки управления окном — НЕ перетаскивают */}
-      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        {/* Minimize */}
+      {/* stopPropagation на контейнере кнопок — чтобы data-tauri-drag-region не перехватывал клики */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <button
           onClick={handleMinimize}
           title="Minimize"
@@ -127,7 +128,6 @@ export function TitleBar() {
           </svg>
         </button>
 
-        {/* Maximize / Restore */}
         <button
           onClick={handleMaximize}
           title={isMaximized ? 'Restore' : 'Maximize'}
@@ -136,20 +136,17 @@ export function TitleBar() {
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
           {isMaximized ? (
-            /* Restore icon — два прямоугольника */
             <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
               <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1.2" />
               <polyline points="0,2 0,10 8,10" fill="none" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           ) : (
-            /* Maximize icon — квадрат */
             <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
               <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           )}
         </button>
 
-        {/* Close */}
         <button
           onClick={handleClose}
           title="Close"

@@ -9,16 +9,16 @@
   
   /* Surface Layers */
   --mica-layer-0: rgba(255, 255, 255, 0.0);
-  --mica-layer-1: rgba(255, 255, 255, 0.04);
-  --mica-layer-2: rgba(255, 255, 255, 0.08);
-  --mica-layer-3: rgba(255, 255, 255, 0.12);
-  --mica-layer-4: rgba(255, 255, 255, 0.16);
-  --mica-layer-5: rgba(255, 255, 255, 0.20);
+  --mica-layer-1: rgba(255, 255, 255, 0.06);
+  --mica-layer-2: rgba(255, 255, 255, 0.10);
+  --mica-layer-3: rgba(255, 255, 255, 0.14);
+  --mica-layer-4: rgba(255, 255, 255, 0.18);
+  --mica-layer-5: rgba(255, 255, 255, 0.22);
   
   /* Stroke/Borders */
-  --mica-stroke: rgba(255, 255, 255, 0.06);
-  --mica-stroke-strong: rgba(255, 255, 255, 0.10);
-  --mica-stroke-subtle: rgba(255, 255, 255, 0.03);
+  --mica-stroke: rgba(255, 255, 255, 0.08);
+  --mica-stroke-strong: rgba(255, 255, 255, 0.12);
+  --mica-stroke-subtle: rgba(255, 255, 255, 0.04);
   
   /* Accent Colors */
   --mica-accent: #60cdff;
@@ -76,21 +76,21 @@
 }
 
 [data-theme="light"] {
-  --mica-base: #f3f3f3;
+  --mica-base: #f0f0f0;
   --mica-base-active: #e8e8e8;
-  --mica-base-inactive: #eeeeee;
+  --mica-base-inactive: #e5e5e5;
   --mica-base-hover: #e0e0e0;
   
   --mica-layer-0: rgba(0, 0, 0, 0.0);
-  --mica-layer-1: rgba(0, 0, 0, 0.04);
-  --mica-layer-2: rgba(0, 0, 0, 0.08);
-  --mica-layer-3: rgba(0, 0, 0, 0.12);
-  --mica-layer-4: rgba(0, 0, 0, 0.16);
-  --mica-layer-5: rgba(0, 0, 0, 0.20);
+  --mica-layer-1: rgba(0, 0, 0, 0.06);
+  --mica-layer-2: rgba(0, 0, 0, 0.10);
+  --mica-layer-3: rgba(0, 0, 0, 0.14);
+  --mica-layer-4: rgba(0, 0, 0, 0.18);
+  --mica-layer-5: rgba(0, 0, 0, 0.22);
   
-  --mica-stroke: rgba(0, 0, 0, 0.08);
-  --mica-stroke-strong: rgba(0, 0, 0, 0.15);
-  --mica-stroke-subtle: rgba(0, 0, 0, 0.04);
+  --mica-stroke: rgba(0, 0, 0, 0.12);
+  --mica-stroke-strong: rgba(0, 0, 0, 0.18);
+  --mica-stroke-subtle: rgba(0, 0, 0, 0.06);
   
   --mica-text-primary: #1a1a1a;
   --mica-text-secondary: rgba(0, 0, 0, 0.65);
@@ -198,9 +198,9 @@ body {
 .mica-backdrop {
   background: linear-gradient(
     160deg,
-    rgba(26, 26, 26, 0.95) 0%,
-    rgba(21, 21, 21, 0.98) 50%,
-    rgba(24, 24, 24, 0.95) 100%
+    var(--mica-base) 0%,
+    var(--mica-base-active) 50%,
+    var(--mica-base-inactive) 100%
   );
   backdrop-filter: blur(100px) saturate(150%);
   -webkit-backdrop-filter: blur(100px) saturate(150%);
@@ -523,6 +523,44 @@ code, pre, kbd, .monaco-editor {
 
 .monaco-editor .overflow-guard {
   border-radius: var(--mica-radius-small) !important;
+}
+
+/* TitleBar drag region */
+[data-tauri-drag-region] {
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+
+
+/* Editor Layout */
+.editor-center-panel {
+  height: 100%;
+  background: var(--mica-base);
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-preview-panel {
+  height: 100%;
+  background: var(--mica-layer-1);
+  backdrop-filter: blur(40px);
+  border-left: 1px solid var(--mica-stroke);
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-separator {
+  width: 4px !important;
+  background: var(--mica-stroke-subtle) !important;
+  z-index: 1;
+  border-radius: 2px;
+  margin: 8px 0;
+  transition: background 0.2s ease;
+}
+
+.editor-separator:hover {
+  background: var(--mica-accent-secondary) !important;
 }
 
 /* Canvas Grid */

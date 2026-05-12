@@ -33,34 +33,21 @@ export function EditorPage() {
   })();
 
   return (
-    <Group orientation="horizontal" style={{ height: '100%' }} resizeTargetMinimumSize={{ coarse: 30, fine: 20 }}>
+    <Group 
+      orientation="horizontal" 
+      style={{ height: '100%' }} 
+      resizeTargetMinimumSize={{ coarse: 30, fine: 20 }}
+    >
       <Panel id="center" defaultSize={70} minSize={30}>
-        <div style={{ 
-          height: '100%', 
-          background: 'var(--mica-base)',
-          overflow: 'hidden',
-        }}>
+        <div className="editor-center-panel">
           {centerPanel}
         </div>
       </Panel>
       
-      <Separator id="sep-right" style={{ 
-        width: 4, 
-        background: 'var(--mica-stroke-subtle)', 
-        zIndex: 1,
-        borderRadius: 2,
-        margin: '8px 0',
-        transition: 'background 0.2s ease',
-      }} />
+      <Separator id="sep-right" className="editor-separator" />
       
       <Panel id="right" defaultSize={30} minSize={20}>
-        <div style={{ 
-          height: '100%', 
-          background: 'var(--mica-layer-1)',
-          backdropFilter: 'blur(40px)',
-          borderLeft: '1px solid var(--mica-stroke)',
-          overflow: 'hidden',
-        }}>
+        <div className="editor-preview-panel">
           <PreviewPanel />
         </div>
       </Panel>
