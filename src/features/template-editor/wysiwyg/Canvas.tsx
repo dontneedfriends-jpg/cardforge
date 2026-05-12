@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { makeStyles } from '@fluentui/react-components';
 import { useCanvasStore } from '../../../store/canvasStore';
 import { CanvasElement } from '../../../store/canvasStore';
-import { useEditorStore, useDeckStore, useUiStore } from '../../../store';
+import { useEditorStore, useUiStore } from '../../../store';
 import { mmToPx } from '../../../theme';
 import { Rnd } from 'react-rnd';
 import { TextElement } from './elements/TextElement';
@@ -13,9 +13,11 @@ import { LineElement } from './elements/LineElement';
 import { IconElement } from './elements/IconElement';
 import { FieldBadge } from './elements/FieldBadge';
 import { ContainerElement } from './elements/ContainerElement';
+import { QrElement } from './elements/QrElement';
 import { AssetPickerDialog } from '../../assets/AssetPickerDialog';
 import { assetPathToRelative } from '../../../shared/utils/assetPath';
 import { ContextMenu } from '../../../shared/components/ContextMenu';
+import { RulerOverlay, snapElementToGuides, RULER_SIZE } from './Ruler';
 
 const useStyles = makeStyles({
   container: {
@@ -55,6 +57,7 @@ const elementMap: Record<CanvasElement['type'], React.FC<any>> = {
   icon: IconElement,
   field: FieldBadge,
   container: ContainerElement,
+  qr: QrElement,
 };
 
 export function Canvas({ widthMm, heightMm }: CanvasProps) {
@@ -62,6 +65,7 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [scrollPos, setScrollPos] = useState({ left: 0, top: 0 });
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -94,24 +98,23 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
 
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const editorMode = useEditorStore((s) => s.editorMode);
-  const deckData = useDeckStore((s) => s.deckData);
-  const cardSize = deckData?.meta.cardSize ?? { widthMm, heightMm, bleedMm: 3 };
   const showGrid = useUiStore((s) => s.showGrid);
   const snapToGrid = useUiStore((s) => s.snapToGrid);
   const gridSize = useUiStore((s) => s.gridSize);
+  const guides = useCanvasStore((s) => s.guides);
+  const alignElements = useCanvasStore((s) => s.alignElements);
+  const groupSelected = useCanvasStore((s) => s.groupSelected);
+  const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
 
   // Вызываем синхронизацию только в visual режиме.
-  // Используем ref чтобы иметь актуальный cardSize в нативных обработчиках.
   const syncRef = useRef(syncVisualToCode);
   syncRef.current = syncVisualToCode;
-  const cardSizeRef = useRef(cardSize);
-  cardSizeRef.current = cardSize;
   const editorModeRef = useRef(editorMode);
   editorModeRef.current = editorMode;
 
   const syncIfVisual = useCallback(() => {
     if (editorModeRef.current === 'visual') {
-      syncRef.current(cardSizeRef.current);
+      syncRef.current();
     }
   }, []);
 
@@ -197,7 +200,8 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
         line: { color: '#fff', lineWidth: 2 },
         icon: { iconName: 'star', iconSize: 24, color: '#fff' },
         field: { fieldName: 'name', fontSize: 14, fontWeight: 'bold', color: '#ffffff', textAlign: 'left' },
-        container: { background: 'rgba(255,255,255,0.1)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', padding: 8 },
+        container: { background: 'rgba(255,255,255,0.1)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', padding: 8, layout: 'free' },
+        qr: { data: 'https://example.com', qrSize: 100, color: '#000000', bgColor: '#ffffff', errorCorrection: 'M' },
       };
 
       const defaultSizes: Record<string, { width: number; height: number }> = {
@@ -209,6 +213,7 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
         icon: { width: 40, height: 40 },
         field: { width: 180, height: 30 },
         container: { width: 150, height: 100 },
+        qr: { width: 100, height: 100 },
       };
 
       const size = defaultSizes[type];
@@ -412,118 +417,256 @@ export function Canvas({ widthMm, heightMm }: CanvasProps) {
         } else if (e.key === '0') {
           e.preventDefault();
           setZoom(1);
+        } else if (e.key === 'g' && !e.shiftKey) {
+          e.preventDefault();
+          if (selectedIds.length >= 2) groupSelected();
+        } else if (e.key === 'g' && e.shiftKey) {
+          e.preventDefault();
+          if (selectedIds.length > 0) ungroupSelected();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, selectedIds, elements, deleteSelected, deleteElement, undo, redo, duplicateSelected, duplicateElement, moveElement, syncIfVisual, copySelected, copyElement, pasteElement, zoom, setZoom]);
+  }, [selectedId, selectedIds, elements, deleteSelected, deleteElement, undo, redo, duplicateSelected, duplicateElement, moveElement, syncIfVisual, copySelected, copyElement, pasteElement, zoom, setZoom, groupSelected, ungroupSelected, alignElements]);
+
+  // Track scroll position for rulers
+  useEffect(() => {
+    const container = canvasRef.current?.closest('[data-canvas-container]') as HTMLElement | null;
+    if (!container) return;
+    const onScroll = () => setScrollPos({ left: container.scrollLeft, top: container.scrollTop });
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Separate top-level elements vs children
+  const topLevelElements = elements.filter((el) => !el.parentId);
+  const childrenMap: Record<string, CanvasElement[]> = {};
+  elements.forEach((el) => {
+    if (el.parentId) {
+      if (!childrenMap[el.parentId]) childrenMap[el.parentId] = [];
+      childrenMap[el.parentId].push(el);
+    }
+  });
 
   return (
-    <div className={styles.container}>
-      <div
-        ref={canvasRef}
-        className={styles.canvas}
-        style={{ 
-          width: cardW, 
-          height: cardH,
-          outline: isDragOver ? '2px dashed #60cdff' : undefined,
-          outlineOffset: isDragOver ? '3px' : undefined,
-          background: showGrid
-            ? `
-                linear-gradient(to right, rgba(96,205,255,0.15) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(96,205,255,0.15) 1px, transparent 1px),
-                #1a1a2e
-              `
-            : '#1a1a2e',
-          backgroundSize: showGrid ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, 100% 100%` : undefined,
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top left',
-        }}
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-      >
-        {elements.map((el) => {
-          const Component = elementMap[el.type];
-          if (!Component) return null;
+    <div
+      className={styles.container}
+      data-canvas-container
+    >
+      <div style={{ position: 'relative', margin: `${RULER_SIZE}px 0 0 ${RULER_SIZE}px` }}>
+        <RulerOverlay
+          canvasWidth={cardW}
+          canvasHeight={cardH}
+          scrollLeft={scrollPos.left}
+          scrollTop={scrollPos.top}
+        />
+        <div
+          ref={canvasRef}
+          className={styles.canvas}
+          style={{ 
+            width: cardW, 
+            height: cardH,
+            outline: isDragOver ? '2px dashed #60cdff' : undefined,
+            outlineOffset: isDragOver ? '3px' : undefined,
+            background: showGrid
+              ? `
+                  linear-gradient(to right, rgba(96,205,255,0.15) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(96,205,255,0.15) 1px, transparent 1px),
+                  #1a1a2e
+                `
+              : '#1a1a2e',
+            backgroundSize: showGrid ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, 100% 100%` : undefined,
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
+          }}
+          onClick={handleClick}
+          onContextMenu={handleContextMenu}
+        >
+          {topLevelElements.map((el) => {
+            const Component = elementMap[el.type];
+            if (!Component) return null;
 
-          if (el.props?.rawHtml) {
+            if (el.props?.rawHtml) {
+              return (
+                <div
+                  key={el.id}
+                  data-element-id={el.id}
+                  style={{
+                    position: 'absolute',
+                    left: el.x,
+                    top: el.y,
+                    width: el.width,
+                    height: el.height,
+                    zIndex: el.zIndex,
+                    overflow: 'hidden',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <Component {...el.props} meta={el.meta} />
+                </div>
+              );
+            }
+
+            const isSelected = selectedIds.includes(el.id);
+            const children = childrenMap[el.id];
+
+            if (children && children.length > 0 && el.type === 'container') {
+              return (
+                <Rnd
+                  key={el.id}
+                  default={{
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height,
+                  }}
+                  position={{ x: el.x, y: el.y }}
+                  size={{ width: el.width, height: el.height }}
+                  scale={zoom}
+                  onDragStop={(_e, d) => {
+                    const dx = d.x - el.x;
+                    const dy = d.y - el.y;
+                    children.forEach((child) => {
+                      moveElement(child.id, child.x + dx, child.y + dy);
+                    });
+                    moveElement(el.id, d.x, d.y);
+                    syncIfVisual();
+                  }}
+                  onResizeStop={(_e, _direction, ref, _delta, position) => {
+                    const w = parseInt(ref.style.width);
+                    const h = parseInt(ref.style.height);
+                    const isAutoLayout = el.props?.layout && el.props.layout !== 'free';
+                    if (!isAutoLayout) {
+                      const scaleX = w / el.width;
+                      const scaleY = h / el.height;
+                      children.forEach((child) => {
+                        moveElement(child.id, child.x * scaleX, child.y * scaleY);
+                        resizeElement(child.id, child.width * scaleX, child.height * scaleY);
+                      });
+                    }
+                    resizeElement(el.id, w, h);
+                    moveElement(el.id, position.x, position.y);
+                    syncIfVisual();
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    if (e.ctrlKey || e.metaKey) {
+                      toggleSelection(el.id);
+                    } else {
+                      selectElement(el.id);
+                    }
+                  }}
+                  bounds="parent"
+                  style={{
+                    zIndex: el.zIndex,
+                    opacity: el.opacity,
+                    transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                  }}
+                  className={isSelected ? styles.selected : ''}
+                  enableResizing={isSelected && selectedIds.length === 1}
+                  disableDragging={!isSelected}
+                >
+                  <div data-element-id={el.id} style={{ width: '100%', height: '100%', position: 'relative', pointerEvents: 'none' }}>
+                    <Component {...el.props} meta={el.meta} />
+                    {children.map((child) => {
+                      const ChildComp = elementMap[child.type];
+                      if (!ChildComp) return null;
+                      const isAutoLayout = el.props?.layout && el.props.layout !== 'free';
+                      return (
+                        <div
+                          key={child.id}
+                          data-element-id={child.id}
+                          style={{
+                            position: isAutoLayout ? 'relative' : 'absolute',
+                            left: isAutoLayout ? undefined : child.x,
+                            top: isAutoLayout ? undefined : child.y,
+                            width: child.width,
+                            height: child.height,
+                            zIndex: child.zIndex,
+                            opacity: child.opacity,
+                            transform: child.rotation ? `rotate(${child.rotation}deg)` : undefined,
+                          }}
+                        >
+                          <ChildComp {...child.props} meta={child.meta} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Rnd>
+              );
+            }
+
             return (
-              <div
+              <Rnd
                 key={el.id}
-                data-element-id={el.id}
-                style={{
-                  position: 'absolute',
-                  left: el.x,
-                  top: el.y,
+                default={{
+                  x: el.x,
+                  y: el.y,
                   width: el.width,
                   height: el.height,
-                  zIndex: el.zIndex,
-                  overflow: 'hidden',
-                  pointerEvents: 'none',
                 }}
+                position={{ x: el.x, y: el.y }}
+                size={{ width: el.width, height: el.height }}
+                scale={zoom}
+                onDragStop={(_e, d) => {
+                  let x = d.x;
+                  let y = d.y;
+                  if (snapToGrid) {
+                    x = Math.round(x / gridSize) * gridSize;
+                    y = Math.round(y / gridSize) * gridSize;
+                  }
+                  // Snap to guides
+                  const snapResult = snapElementToGuides(
+                    { x, y, width: el.width, height: el.height },
+                    guides
+                  );
+                  if (snapResult.x !== undefined) x = snapResult.x;
+                  if (snapResult.y !== undefined) y = snapResult.y;
+                  moveElement(el.id, x, y);
+                  syncIfVisual();
+                }}
+                onResizeStop={(_e, _direction, ref, _delta, position) => {
+                  let w = parseInt(ref.style.width);
+                  let h = parseInt(ref.style.height);
+                  let newX = position.x;
+                  let newY = position.y;
+                  if (snapToGrid) {
+                    w = Math.round(w / gridSize) * gridSize;
+                    h = Math.round(h / gridSize) * gridSize;
+                    newX = Math.round(newX / gridSize) * gridSize;
+                    newY = Math.round(newY / gridSize) * gridSize;
+                  }
+                  resizeElement(el.id, w, h);
+                  moveElement(el.id, newX, newY);
+                  syncIfVisual();
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  if (e.ctrlKey || e.metaKey) {
+                    toggleSelection(el.id);
+                  } else {
+                    selectElement(el.id);
+                  }
+                }}
+                bounds="parent"
+                style={{
+                  zIndex: el.zIndex,
+                  opacity: el.opacity,
+                  transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                }}
+                className={isSelected ? styles.selected : ''}
+                enableResizing={isSelected && selectedIds.length === 1}
+                disableDragging={!isSelected || selectedIds.length > 1}
               >
-                <Component {...el.props} meta={el.meta} />
-              </div>
+                <div data-element-id={el.id} style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
+                  <Component {...el.props} meta={el.meta} />
+                </div>
+              </Rnd>
             );
-          }
-
-          const isSelected = selectedIds.includes(el.id);
-
-          return (
-            <Rnd
-              key={el.id}
-              default={{
-                x: el.x,
-                y: el.y,
-                width: el.width,
-                height: el.height,
-              }}
-              position={{ x: el.x, y: el.y }}
-              size={{ width: el.width, height: el.height }}
-              scale={zoom}
-              onDragStop={(_e, d) => {
-                const x = snapToGrid ? Math.round(d.x / gridSize) * gridSize : d.x;
-                const y = snapToGrid ? Math.round(d.y / gridSize) * gridSize : d.y;
-                moveElement(el.id, x, y);
-                syncIfVisual();
-              }}
-              onResizeStop={(_e, _direction, ref, _delta, position) => {
-                const w = parseInt(ref.style.width);
-                const h = parseInt(ref.style.height);
-                const newW = snapToGrid ? Math.round(w / gridSize) * gridSize : w;
-                const newH = snapToGrid ? Math.round(h / gridSize) * gridSize : h;
-                const newX = snapToGrid ? Math.round(position.x / gridSize) * gridSize : position.x;
-                const newY = snapToGrid ? Math.round(position.y / gridSize) * gridSize : position.y;
-                resizeElement(el.id, newW, newH);
-                moveElement(el.id, newX, newY);
-                syncIfVisual();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                if (e.ctrlKey || e.metaKey) {
-                  toggleSelection(el.id);
-                } else {
-                  selectElement(el.id);
-                }
-              }}
-              bounds="parent"
-              style={{
-                zIndex: el.zIndex,
-                opacity: el.opacity,
-                transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-              }}
-              className={isSelected ? styles.selected : ''}
-              enableResizing={isSelected && selectedIds.length === 1}
-              disableDragging={!isSelected || selectedIds.length > 1}
-            >
-              <div data-element-id={el.id} style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
-                <Component {...el.props} meta={el.meta} />
-              </div>
-            </Rnd>
-          );
-        })}
+          })}
+        </div>
       </div>
       
       <AssetPickerDialog

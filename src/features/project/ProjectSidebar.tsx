@@ -1,4 +1,4 @@
-import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview, MessageBar, MessageBarBody } from '@fluentui/react-components';
+import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview, MessageBar, MessageBarBody, ProgressBar } from '@fluentui/react-components';
 import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, BoardRegular, type FluentIcon } from '@fluentui/react-icons';
 import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../../store';
 import { readDir, readFile } from '@tauri-apps/plugin-fs';
@@ -425,6 +425,11 @@ export function ProjectSidebar() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+              {importing && (
+                <div style={{ marginTop: 12 }}>
+                  <ProgressBar thickness="large" />
                 </div>
               )}
               {importStatus && (

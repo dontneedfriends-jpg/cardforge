@@ -50,7 +50,6 @@ export function TemplateEditor() {
   const isDirty = useEditorStore((s) => s.isDirty);
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const syncCodeToVisual = useEditorStore((s) => s.syncCodeToVisual);
-  const currentCardSize = useEditorStore((s) => s.currentCardSize);
   const saveTemplate = useEditorStore((s) => s.saveTemplate);
   const saveCardBack = useEditorStore((s) => s.saveCardBack);
   const [tab, setTab] = useState<string>('front');
@@ -75,12 +74,13 @@ export function TemplateEditor() {
     
     if (mode === 'visual') {
       // Code → Visual: парсим HTML в canvas элементы
-      syncCodeToVisual();
-      setEditorMode('visual');
+      // syncCodeToVisual возвращает false если не удалось распарсить
+      if (syncCodeToVisual()) {
+        setEditorMode('visual');
+      }
     } else {
       // Visual → Code: генерируем HTML из canvas элементов
-      const cardSize = currentCardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
-      syncVisualToCode(cardSize);
+      syncVisualToCode();
       setEditorMode('code');
     }
   };

@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface ShapeElementProps {
   background: string;
   fill: string;
@@ -6,7 +8,7 @@ export interface ShapeElementProps {
   borderColor: string;
 }
 
-export function ShapeElement(props: Partial<ShapeElementProps>) {
+export const ShapeElement = React.memo(function ShapeElement(props: Partial<ShapeElementProps>) {
   const { background, fill, borderRadius, borderWidth, borderColor } = props;
   return (
     <div
@@ -20,4 +22,4 @@ export function ShapeElement(props: Partial<ShapeElementProps>) {
       }}
     />
   );
-}
+});

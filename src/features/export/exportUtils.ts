@@ -144,12 +144,19 @@ export async function captureCardAsPng(
   }
 }
 
+export interface ProgressCallback {
+  onProgress?: (current: number, total: number) => void;
+  onStatus?: (status: string) => void;
+  cancelled?: boolean;
+}
+
 export async function exportAllCardsAsPng(
   deckName: string,
   cardBodies: { body: string; css: string }[],
   cardSize: CardSize,
   dpi: number,
-  projectPath: string
+  projectPath: string,
+  pc?: ProgressCallback
 ): Promise<void> {
   const dir = await open({
     title: 'Export PNGs — select output folder',
@@ -157,12 +164,16 @@ export async function exportAllCardsAsPng(
     defaultPath: `${projectPath}/${deckName}_png`,
   });
   if (!dir) return;
+  if (pc?.onStatus) pc.onStatus('Rendering cards...');
 
   const names: string[] = [];
   const images: Uint8Array[] = [];
   const fontCss = await injectFontCss(cardBodies[0]?.css || '', projectPath);
 
   for (let i = 0; i < cardBodies.length; i++) {
+    if (pc?.cancelled) return;
+    if (pc?.onProgress) pc.onProgress(i + 1, cardBodies.length);
+    if (pc?.onStatus) pc.onStatus(`Rendering card ${i + 1} of ${cardBodies.length}...`);
     const bytes = await captureCardAsPng(
       cardBodies[i].body,
       fontCss || cardBodies[i].css,
@@ -174,6 +185,7 @@ export async function exportAllCardsAsPng(
     images.push(bytes);
   }
 
+  if (pc?.onStatus) pc.onStatus('Saving images to disk...');
   await invoke('export_png_batch', { outputDir: dir, images: images.map(b => Array.from(b)), names });
 }
 
@@ -313,7 +325,8 @@ export async function exportTtsSpritesheet(
   cardBackDesign: CardBackDesign,
   cardSize: CardSize,
   dpi: number,
-  projectPath: string
+  projectPath: string,
+  pc?: ProgressCallback
 ): Promise<string> {
   const dir = await open({
     title: 'Export TTS — select output folder',
@@ -321,9 +334,13 @@ export async function exportTtsSpritesheet(
     defaultPath: `${projectPath}/${deckName}_tts`,
   });
   if (!dir) return '';
+  if (pc?.onStatus) pc.onStatus('Rendering cards...');
 
   const cardImages: Uint8Array[] = [];
   for (let i = 0; i < cardBodies.length; i++) {
+    if (pc?.cancelled) return '';
+    if (pc?.onProgress) pc.onProgress(i + 1, cardBodies.length);
+    if (pc?.onStatus) pc.onStatus(`Rendering card ${i + 1} of ${cardBodies.length}...`);
     const bytes = await captureCardAsPng(
       cardBodies[i].body,
       cardBodies[i].css,
@@ -334,6 +351,7 @@ export async function exportTtsSpritesheet(
     cardImages.push(bytes);
   }
 
+  if (pc?.onStatus) pc.onStatus('Rendering card back...');
   const backBytes = await captureCardBackAsPng(
     cardBackDesign,
     cardSize.widthMm,
@@ -341,6 +359,7 @@ export async function exportTtsSpritesheet(
     dpi
   );
 
+  if (pc?.onStatus) pc.onStatus('Assembling spritesheet...');
   const cardsPerRow = 10;
   const result = await invoke<TtsSpritesheetResult>('export_tts_spritesheet', {
     outputDir: dir,

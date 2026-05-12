@@ -1,9 +1,11 @@
+import React from 'react';
+
 export interface LineElementProps {
   color: string;
   lineWidth: number;
 }
 
-export function LineElement(props: Partial<LineElementProps>) {
+export const LineElement = React.memo(function LineElement(props: Partial<LineElementProps>) {
   const { color, lineWidth } = props;
   return (
     <div
@@ -25,4 +27,4 @@ export function LineElement(props: Partial<LineElementProps>) {
       />
     </div>
   );
-}
+});

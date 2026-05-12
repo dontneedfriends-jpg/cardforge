@@ -1,10 +1,12 @@
+import React from 'react';
+
 export interface CircleElementProps {
   background: string;
   borderWidth: number;
   borderColor: string;
 }
 
-export function CircleElement(props: Partial<CircleElementProps>) {
+export const CircleElement = React.memo(function CircleElement(props: Partial<CircleElementProps>) {
   const { background, borderWidth, borderColor } = props;
   return (
     <div
@@ -18,4 +20,4 @@ export function CircleElement(props: Partial<CircleElementProps>) {
       }}
     />
   );
-}
+});

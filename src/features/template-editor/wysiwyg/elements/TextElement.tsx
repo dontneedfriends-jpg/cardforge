@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface TextElementProps {
   text: string;
   fontSize: number;
@@ -5,10 +7,21 @@ export interface TextElementProps {
   color: string;
   fontFamily?: string;
   textAlign: 'left' | 'center' | 'right';
+  textStroke: number;
+  textStrokeColor: string;
+  textShadow: string;
 }
 
-export function TextElement(props: Partial<TextElementProps>) {
-  const { text, fontSize, fontWeight, color, fontFamily, textAlign } = props;
+export const TextElement = React.memo(function TextElement(props: Partial<TextElementProps>) {
+  const { text, fontSize, fontWeight, color, fontFamily, textAlign, textStroke, textStrokeColor, textShadow } = props;
+
+  const textStyle: React.CSSProperties = {};
+  if (textStroke) {
+    textStyle.WebkitTextStroke = `${textStroke}px ${textStrokeColor || '#000'}`;
+  }
+  if (textShadow) {
+    textStyle.textShadow = textShadow;
+  }
 
   return (
     <div
@@ -25,9 +38,10 @@ export function TextElement(props: Partial<TextElementProps>) {
         alignItems: 'center',
         padding: '2px 4px',
         boxSizing: 'border-box',
+        ...textStyle,
       }}
     >
       {text || 'Text'}
     </div>
   );
-}
+});

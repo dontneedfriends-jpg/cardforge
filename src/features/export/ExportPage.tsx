@@ -3,7 +3,9 @@ import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../..
 import { renderCardBody } from '../preview/CardRenderer';
 import { exportAllCardsAsPng, generatePrintHtml, exportTtsSpritesheet } from './exportUtils';
 import type { PdfExportOptions } from '../../shared/types/project';
-import { useState, useCallback } from 'react';
+import type { ProgressCallback } from './exportUtils';
+import { ProgressDialog } from '../../shared/components/ProgressDialog';
+import { useState, useCallback, useRef } from 'react';
 
 const useStyles = makeStyles({
   container: {
@@ -63,6 +65,10 @@ export function ExportPage() {
   const [selectedDeckId, setSelectedDeckId] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+  const [progressCurrent, setProgressCurrent] = useState<number | undefined>(undefined);
+  const [progressTotal, setProgressTotal] = useState<number | undefined>(undefined);
+  const [progressStatus, setProgressStatus] = useState<string>('');
+  const cancelRef = useRef(false);
   const [options, setOptions] = useState<PdfExportOptions>({
     dpi: defaultExportDpi,
     bleed: defaultBleedMm,
@@ -85,6 +91,16 @@ export function ExportPage() {
     if (!deck) return;
     setExporting(true);
     setStatus('');
+    setProgressCurrent(undefined);
+    setProgressTotal(undefined);
+    setProgressStatus('Preparing...');
+    cancelRef.current = false;
+
+    const pc: ProgressCallback = {
+      onProgress: (current, total) => { setProgressCurrent(current); setProgressTotal(total); },
+      onStatus: (s) => setProgressStatus(s),
+      get cancelled() { return cancelRef.current; },
+    };
 
     try {
       await useEditorStore.getState().saveTemplate();
@@ -97,18 +113,20 @@ export function ExportPage() {
       const allCards = rows.map(row => renderCardBody(editorHtml, editorCss, row));
 
       if (format === 'png') {
-        setStatus(`Capturing ${allCards.length} cards...`);
-        await exportAllCardsAsPng(deck.name, allCards, deck.cardSize, options.dpi, projectPath);
-        setStatus(`Exported ${allCards.length} PNGs successfully`);
+        await exportAllCardsAsPng(deck.name, allCards, deck.cardSize, options.dpi, projectPath, pc);
+        if (!cancelRef.current) setStatus(`Exported ${allCards.length} PNGs successfully`);
+        else setStatus('Export cancelled');
       } else if (format === 'tts') {
-        setStatus(`Capturing ${allCards.length} cards for TTS...`);
+        setProgressStatus('Capturing cards for TTS...');
         const es = useEditorStore.getState();
         const msg = await exportTtsSpritesheet(
-          deck.name, allCards, es.cardBack, deck.cardSize, options.dpi, projectPath
+          deck.name, allCards, es.cardBack, deck.cardSize, options.dpi, projectPath, pc
         );
-        setStatus(msg || 'TTS export cancelled');
+        setStatus(msg || (cancelRef.current ? 'Export cancelled' : 'TTS export error'));
       } else {
+        setProgressStatus('Generating print layout...');
         const printHtml = await generatePrintHtml(allCards, deck.cardSize, options, projectPath);
+        setProgressStatus('Opening print dialog...');
         const iframe = document.createElement('iframe');
         iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;';
         document.body.appendChild(iframe);
@@ -134,6 +152,9 @@ export function ExportPage() {
       setStatus(`Export error: ${e?.toString()}`);
     }
     setExporting(false);
+    setProgressCurrent(undefined);
+    setProgressTotal(undefined);
+    setProgressStatus('');
   }, [projectPath, selectedDeckId, manifest, format, editorHtml, editorCss, options]);
 
   if (!manifest || !projectPath) {
@@ -254,6 +275,15 @@ export function ExportPage() {
           <MessageBarBody>{status}</MessageBarBody>
         </MessageBar>
       )}
+
+      <ProgressDialog
+        open={exporting}
+        title={`Export ${format.toUpperCase()}`}
+        status={progressStatus}
+        current={progressCurrent}
+        total={progressTotal}
+        onCancel={() => { cancelRef.current = true; }}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   StarRegular,
   TagRegular,
   SquareMultipleRegular,
+  DocumentBulletListRegular,
 } from '@fluentui/react-icons';
 import { CanvasElement } from '../../../store/canvasStore';
 
@@ -130,6 +131,11 @@ export function ElementPanel() {
         icon={<SquareMultipleRegular fontSize={18} />}
         label="Container"
         elementType="container"
+      />
+      <DraggableItem
+        icon={<DocumentBulletListRegular fontSize={18} />}
+        label="QR Code"
+        elementType="qr"
       />
     </div>
   );

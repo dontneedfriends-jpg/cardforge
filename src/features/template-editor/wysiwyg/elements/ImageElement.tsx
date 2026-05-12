@@ -1,10 +1,12 @@
+import React from 'react';
+
 export interface ImageElementProps {
   src: string;
   fieldName: string;
   isField: boolean;
 }
 
-export function ImageElement(props: Partial<ImageElementProps>) {
+export const ImageElement = React.memo(function ImageElement(props: Partial<ImageElementProps>) {
   const { src, fieldName, isField } = props;
   const imgSrc = isField ? `{{${fieldName}}}` : (src || '');
   return (
@@ -23,4 +25,4 @@ export function ImageElement(props: Partial<ImageElementProps>) {
       )}
     </div>
   );
-}
+});

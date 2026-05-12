@@ -7,6 +7,12 @@ import {
   ZoomInRegular,
   ZoomOutRegular,
   ZoomFitRegular,
+  AlignLeftRegular,
+  TextAlignCenterRegular,
+  AlignRightRegular,
+  GroupRegular,
+  GroupDismissRegular,
+  LineRegular,
 } from '@fluentui/react-icons';
 import { Canvas } from './wysiwyg/Canvas';
 import { ElementPanel } from './wysiwyg/ElementPanel';
@@ -66,6 +72,9 @@ export function VisualEditor() {
   const redo = useCanvasStore((s) => s.redo);
   const duplicateSelected = useCanvasStore((s) => s.duplicateSelected);
   const deleteSelected = useCanvasStore((s) => s.deleteSelected);
+  const alignElements = useCanvasStore((s) => s.alignElements);
+  const groupSelected = useCanvasStore((s) => s.groupSelected);
+  const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
   const zoom = useCanvasStore((s) => s.zoom);
   const setZoom = useCanvasStore((s) => s.setZoom);
 
@@ -93,6 +102,26 @@ export function VisualEditor() {
             </Tooltip>
             <Tooltip content={`Delete (${selectedIds.length > 1 ? selectedIds.length + ' items' : 'Del'})`} relationship="label">
               <Button icon={<DeleteRegular />} size="small" appearance="subtle" onClick={deleteSelected} disabled={selectedIds.length === 0} />
+            </Tooltip>
+            <div style={{ width: '1px', height: '16px', background: 'var(--mica-stroke)', margin: '0 4px' }} />
+            <Tooltip content="Align Left" relationship="label">
+              <Button icon={<AlignLeftRegular />} size="small" appearance="subtle" onClick={() => alignElements('left')} disabled={selectedIds.length < 2} />
+            </Tooltip>
+            <Tooltip content="Align Center" relationship="label">
+              <Button icon={<TextAlignCenterRegular />} size="small" appearance="subtle" onClick={() => alignElements('center')} disabled={selectedIds.length < 2} />
+            </Tooltip>
+            <Tooltip content="Align Right" relationship="label">
+              <Button icon={<AlignRightRegular />} size="small" appearance="subtle" onClick={() => alignElements('right')} disabled={selectedIds.length < 2} />
+            </Tooltip>
+            <Tooltip content="Distribute Horizontally" relationship="label">
+              <Button icon={<LineRegular />} size="small" appearance="subtle" onClick={() => alignElements('distributeH')} disabled={selectedIds.length < 3} />
+            </Tooltip>
+            <div style={{ width: '1px', height: '16px', background: 'var(--mica-stroke)', margin: '0 4px' }} />
+            <Tooltip content="Group" relationship="label">
+              <Button icon={<GroupRegular />} size="small" appearance="subtle" onClick={groupSelected} disabled={selectedIds.length < 2} />
+            </Tooltip>
+            <Tooltip content="Ungroup" relationship="label">
+              <Button icon={<GroupDismissRegular />} size="small" appearance="subtle" onClick={ungroupSelected} disabled={selectedIds.length === 0} />
             </Tooltip>
           </div>
           <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>

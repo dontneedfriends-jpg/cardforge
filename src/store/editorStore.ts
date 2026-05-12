@@ -24,8 +24,8 @@ interface EditorStoreActions {
   setActiveTab: (tab: 'html' | 'css') => void;
   setEditorMode: (mode: EditorMode) => void;
   setCardBack: (design: CardBackDesign) => void;
-  syncVisualToCode: (cardSize: CardSize) => void;
-  syncCodeToVisual: () => void;
+  syncVisualToCode: () => void;
+  syncCodeToVisual: () => boolean;
   clearSyncSource: () => void;
   saveTemplate: () => Promise<void>;
   saveCanvas: () => Promise<void>;
@@ -41,8 +41,8 @@ interface EditorStoreActions {
   setActiveTab: (tab: 'html' | 'css') => void;
   setEditorMode: (mode: EditorMode) => void;
   setCardBack: (design: CardBackDesign) => void;
-  syncVisualToCode: (cardSize: CardSize) => void;
-  syncCodeToVisual: () => void;
+  syncVisualToCode: () => void;
+  syncCodeToVisual: () => boolean;
   clearSyncSource: () => void;
   saveTemplate: () => Promise<void>;
   saveCardBack: () => Promise<void>;
@@ -94,7 +94,7 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   setCardBack: (design: CardBackDesign) => set({ cardBack: design, isDirty: true }),
   clearSyncSource: () => set({ syncSource: null }),
 
-  syncVisualToCode: (cardSize: CardSize) => {
+  syncVisualToCode: () => {
     // Если сейчас идёт синхронизация code→visual — не реагируем, иначе цикл
     if (get().syncSource === 'code') return;
 
@@ -106,7 +106,8 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
       return;
     }
     
-    const { css: existingCss } = get();
+    const { css: existingCss, currentCardSize } = get();
+    const cardSize = currentCardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
     const { html, css } = elementsToTemplate(elements, cardSize, existingCss);
     // Помечаем источник ПЕРЕД записью, чтобы CodeEditor не перепарсил обратно
     set({ syncSource: 'visual', html, css, isDirty: true });
@@ -119,12 +120,14 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     // Если сейчас идёт синхронизация visual→code — не реагируем, иначе цикл
     if (get().syncSource === 'visual') {
       console.log('[syncCodeToVisual] Skipped: syncSource is visual');
-      return;
+      return false;
     }
 
     const { html, css, currentCardSize } = get();
     console.log('[syncCodeToVisual] html length:', html?.length, 'css length:', css?.length);
     set({ syncSource: 'code' });
+
+    let success = false;
 
     if (!html.trim()) {
       console.log('[syncCodeToVisual] HTML empty, clearing canvas');
@@ -136,14 +139,15 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
       console.log('[syncCodeToVisual] Parsed elements:', elements?.length, elements?.map(e => ({id: e.id, type: e.type, hasSourceHtml: !!e.meta?.sourceHtml})));
       if (elements) {
         useCanvasStore.getState().setElements(elements);
+        success = true;
       } else {
-        // Не удалось распарсить — оставляем canvas пустым, но НЕ меняем HTML
-        console.warn('[Sync] Could not parse template to visual elements. Template may use unsupported layout.');
-        useCanvasStore.getState().clearCanvas();
+        // Не удалось распарсить — НЕ очищаем canvas, НЕ меняем HTML
+        console.warn('[Sync] Could not parse template to visual elements. Staying in code mode.');
       }
     }
 
     Promise.resolve().then(() => set({ syncSource: null }));
+    return success;
   },
 
   saveTemplate: async () => {

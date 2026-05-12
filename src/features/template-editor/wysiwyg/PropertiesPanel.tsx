@@ -1,4 +1,5 @@
-import { Text, Input, Dropdown, Option, SpinButton, makeStyles, Label, Slider, Button } from '@fluentui/react-components';
+import { Text, Input, Dropdown, Option, SpinButton, makeStyles, Label, Slider, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent } from '@fluentui/react-components';
+import { SaveRegular, DeleteRegular } from '@fluentui/react-icons';
 import { useCanvasStore } from '../../../store/canvasStore';
 import { useDeckStore } from '../../../store';
 import { AssetPickerDialog } from '../../assets/AssetPickerDialog';
@@ -36,7 +37,13 @@ export function PropertiesPanel() {
   const updateElementProps = useCanvasStore((state) => state.updateElementProps);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [customFonts, setCustomFonts] = useState<string[]>([]);
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
   const projectPath = useProjectStore((s) => s.projectPath);
+  const presets = useCanvasStore((s) => s.presets);
+  const savePreset = useCanvasStore((s) => s.savePreset);
+  const applyPreset = useCanvasStore((s) => s.applyPreset);
+  const deletePreset = useCanvasStore((s) => s.deletePreset);
 
   useEffect(() => {
     if (projectPath) listCustomFonts(projectPath).then(setCustomFonts);
@@ -197,6 +204,34 @@ export function PropertiesPanel() {
           <Option value="monospace">Monospace</Option>
           {customFonts.map(f => <Option key={f} value={f}>{f}</Option>)}
         </Dropdown>
+      </div>,
+      <div className={styles.row} key="text-stroke">
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">Stroke</Label>
+          <SpinButton
+            value={props.textStroke ?? 0}
+            min={0} max={10}
+            onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('textStroke', data.value); }}
+            size="small"
+          />
+        </div>
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">Stroke Color</Label>
+          <Input
+            value={props.textStrokeColor ?? '#000000'}
+            onChange={(_e, data) => handlePropChange('textStrokeColor', data.value)}
+            size="small"
+          />
+        </div>
+      </div>,
+      <div className={styles.field} key="text-shadow">
+        <Label size="small">Text Shadow</Label>
+        <Input
+          value={props.textShadow ?? ''}
+          onChange={(_e, data) => handlePropChange('textShadow', data.value)}
+          size="small"
+          placeholder="2px 2px 4px rgba(0,0,0,0.5)"
+        />
       </div>
     );
   }
@@ -308,6 +343,108 @@ export function PropertiesPanel() {
           />
         </div>
       );
+      fields.push(
+        <div className={styles.field} key="layout">
+          <Label size="small">Layout</Label>
+          <Dropdown
+            value={props.layout ?? 'free'}
+            onOptionSelect={(_e, data) => handlePropChange('layout', data.optionValue || 'free')}
+            size="small"
+          >
+            <Option value="free">Free</Option>
+            <Option value="grid">Grid</Option>
+            <Option value="stack">Stack</Option>
+          </Dropdown>
+        </div>
+      );
+      if (props.layout === 'grid') {
+        fields.push(
+          <div className={styles.row} key="grid-cols">
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Columns</Label>
+              <SpinButton
+                value={props.columns ?? 2}
+                min={1} max={12}
+                onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('columns', data.value); }}
+                size="small"
+              />
+            </div>
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Rows</Label>
+              <SpinButton
+                value={props.rows ?? 0}
+                min={0} max={12}
+                onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('rows', data.value); }}
+                size="small"
+              />
+            </div>
+          </div>,
+          <div className={styles.field} key="grid-gap">
+            <Label size="small">Gap</Label>
+            <SpinButton
+              value={props.gap ?? 4}
+              min={0} max={40}
+              onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('gap', data.value); }}
+              size="small"
+            />
+          </div>
+        );
+      }
+      if (props.layout === 'stack') {
+        fields.push(
+          <div className={styles.row} key="stack-dir">
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Direction</Label>
+              <Dropdown
+                value={props.direction ?? 'column'}
+                onOptionSelect={(_e, data) => handlePropChange('direction', data.optionValue || 'column')}
+                size="small"
+              >
+                <Option value="column">Column</Option>
+                <Option value="row">Row</Option>
+              </Dropdown>
+            </div>
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Gap</Label>
+              <SpinButton
+                value={props.gap ?? 4}
+                min={0} max={40}
+                onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('gap', data.value); }}
+                size="small"
+              />
+            </div>
+          </div>,
+          <div className={styles.row} key="stack-align">
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Align</Label>
+              <Dropdown
+                value={props.alignItems ?? 'stretch'}
+                onOptionSelect={(_e, data) => handlePropChange('alignItems', data.optionValue || 'stretch')}
+                size="small"
+              >
+                <Option value="stretch">Stretch</Option>
+                <Option value="start">Start</Option>
+                <Option value="center">Center</Option>
+                <Option value="end">End</Option>
+              </Dropdown>
+            </div>
+            <div className={styles.field} style={{ flex: 1 }}>
+              <Label size="small">Justify</Label>
+              <Dropdown
+                value={props.justifyContent ?? 'start'}
+                onOptionSelect={(_e, data) => handlePropChange('justifyContent', data.optionValue || 'start')}
+                size="small"
+              >
+                <Option value="start">Start</Option>
+                <Option value="center">Center</Option>
+                <Option value="end">End</Option>
+                <Option value="between">Between</Option>
+                <Option value="around">Around</Option>
+              </Dropdown>
+            </div>
+          </div>
+        );
+      }
     }
     
     fields.push(
@@ -377,14 +514,148 @@ export function PropertiesPanel() {
           onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('iconSize', data.value); }}
           size="small"
         />
+      </div>,
+      <div className={styles.field} key="icon-color">
+        <Label size="small">Color</Label>
+        <Input
+          value={props.color ?? '#ffffff'}
+          onChange={(_e, data) => handlePropChange('color', data.value)}
+          size="small"
+        />
       </div>
     );
   }
+
+  if (type === 'qr') {
+    fields.push(
+      <div className={styles.field} key="qr-data">
+        <Label size="small">Data</Label>
+        <Input
+          value={props.data ?? ''}
+          onChange={(_e, data) => handlePropChange('data', data.value)}
+          size="small"
+          placeholder="https://example.com"
+        />
+      </div>,
+      <div className={styles.row} key="qr-options">
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">Size</Label>
+          <SpinButton
+            value={props.qrSize ?? 100}
+            min={20} max={400}
+            onChange={(_e, data) => { if (data.value !== undefined) handlePropChange('qrSize', data.value); }}
+            size="small"
+          />
+        </div>
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">ECC</Label>
+          <Dropdown
+            value={props.errorCorrection ?? 'M'}
+            onOptionSelect={(_e, data) => handlePropChange('errorCorrection', data.optionValue || 'M')}
+            size="small"
+          >
+            <Option value="L">L (low)</Option>
+            <Option value="M">M (medium)</Option>
+            <Option value="Q">Q (high)</Option>
+            <Option value="H">H (max)</Option>
+          </Dropdown>
+        </div>
+      </div>,
+      <div className={styles.row} key="qr-colors">
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">Color</Label>
+          <Input
+            value={props.color ?? '#000000'}
+            onChange={(_e, data) => handlePropChange('color', data.value)}
+            size="small"
+          />
+        </div>
+        <div className={styles.field} style={{ flex: 1 }}>
+          <Label size="small">Bg Color</Label>
+          <Input
+            value={props.bgColor ?? '#ffffff'}
+            onChange={(_e, data) => handlePropChange('bgColor', data.value)}
+            size="small"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const filteredPresets = presets.filter((p) => p.type === type);
 
   return (
     <div className={styles.panel}>
       <Text size={200} weight="semibold">{type.charAt(0).toUpperCase() + type.slice(1)} Properties</Text>
       {fields}
+
+      <div style={{ borderTop: '1px solid var(--mica-stroke)', paddingTop: '12px', marginTop: '8px' }}>
+        <Label size="small">Presets</Label>
+        <div className={styles.row} style={{ marginTop: '4px' }}>
+          <Button
+            size="small"
+            icon={<SaveRegular />}
+            onClick={() => { setNewPresetName(''); setPresetDialogOpen(true); }}
+            style={{ flex: 1 }}
+          >
+            Save
+          </Button>
+          {filteredPresets.length > 0 && (
+            <Dropdown
+              size="small"
+              value="Apply..."
+              onOptionSelect={(_e, data) => {
+                if (data.optionValue) applyPreset(data.optionValue);
+              }}
+              placeholder="Apply..."
+              style={{ flex: 2 }}
+            >
+              {filteredPresets.map((p) => (
+                <Option key={p.id} value={p.id} text={p.name}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>{p.name}</span>
+                    <Button
+                      size="small"
+                      icon={<DeleteRegular />}
+                      appearance="subtle"
+                      onClick={(e) => { e.stopPropagation(); deletePreset(p.id); }}
+                    />
+                  </div>
+                </Option>
+              ))}
+            </Dropdown>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={presetDialogOpen} onOpenChange={(_e, data) => setPresetDialogOpen(data.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Save Preset</DialogTitle>
+            <DialogContent>
+              <Input
+                placeholder="Preset name"
+                value={newPresetName}
+                onChange={(_e, data) => setNewPresetName(data.value)}
+                autoFocus
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setPresetDialogOpen(false)}>Cancel</Button>
+              <Button
+                appearance="primary"
+                disabled={!newPresetName.trim()}
+                onClick={() => {
+                  savePreset(newPresetName.trim());
+                  setPresetDialogOpen(false);
+                }}
+              >
+                Save
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </div>
   );
 }

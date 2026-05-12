@@ -49,8 +49,8 @@ export function injectPosition(
   
   const [, openTag, attrs, closeAndContent] = tagMatch;
   
-  // Извлекаем текущий style
-  const styleMatch = attrs.match(/\sstyle="([^"]*)"/);
+  // Извлекаем текущий style (оба варианта кавычек)
+  const styleMatch = attrs.match(/\sstyle="([^"]*)"/) || attrs.match(/\sstyle='([^']*)'/);
   let styles: Record<string, string> = {};
   
   if (styleMatch) {
@@ -68,10 +68,27 @@ export function injectPosition(
   styles['width'] = `${width}px`;
   styles['height'] = `${height}px`;
   
-  if (rotation && rotation !== 0) {
-    styles['transform'] = `rotate(${rotation}deg)`;
-  } else {
-    delete styles['transform'];
+  // Мержим rotate с существующим transform (не теряем scale и другие функции)
+  if (rotation !== undefined) {
+    const existingTransform = styles['transform'] || '';
+    if (rotation && rotation !== 0) {
+      const newRotate = `rotate(${rotation}deg)`;
+      if (existingTransform) {
+        styles['transform'] = /rotate\(/.test(existingTransform)
+          ? existingTransform.replace(/rotate\([^)]*\)/g, newRotate)
+          : `${existingTransform} ${newRotate}`;
+      } else {
+        styles['transform'] = newRotate;
+      }
+    } else {
+      if (existingTransform) {
+        const cleaned = existingTransform.replace(/\s*rotate\([^)]*\)/g, '').trim();
+        if (cleaned) styles['transform'] = cleaned;
+        else delete styles['transform'];
+      } else {
+        delete styles['transform'];
+      }
+    }
   }
   
   if (opacity !== undefined && opacity !== 1) {
@@ -94,7 +111,10 @@ export function injectPosition(
   // Заменяем или добавляем style
   let newAttrs = attrs;
   if (styleMatch) {
-    newAttrs = attrs.replace(/\sstyle="[^"]*"/, ` style="${styleStr}"`);
+    // Определяем какой разделитель был и заменяем
+    const quote = styleMatch[0].includes("style='") ? "'" : '"';
+    const styleRegex = new RegExp(` style=${quote}[^${quote}]*${quote}`);
+    newAttrs = attrs.replace(styleRegex, ` style="${styleStr}"`);
   } else {
     newAttrs = `${attrs} style="${styleStr}"`;
   }
@@ -126,6 +146,7 @@ export function extractManifest(html: string): {
     opacity: number;
     zIndex: number;
     props: Record<string, any>;
+    parentId?: string;
   }>;
   cardSize?: { widthMm: number; heightMm: number; bleedMm: number };
 } | null {
@@ -154,6 +175,7 @@ export function createManifest(
     opacity: number;
     zIndex: number;
     props: Record<string, any>;
+    parentId?: string;
     meta?: { sourceHtml?: string };
   }>,
   cardSize: { widthMm: number; heightMm: number; bleedMm: number }
@@ -172,6 +194,7 @@ export function createManifest(
       opacity: el.opacity,
       zIndex: el.zIndex,
       props: el.props,
+      parentId: el.parentId,
     })),
   };
   
@@ -182,8 +205,8 @@ export function createManifest(
  * Встраивает манифест в HTML
  */
 export function injectManifest(html: string, manifest: string): string {
-  // Удаляем старый манифест если есть
-  const cleaned = html.replace(/\s*<script type="application\/cf-manifest">[\s\S]*?<\/script>\s*/, '');
+  // Удаляем старые манифесты если есть (g — на случай дубликатов)
+  const cleaned = html.replace(/\s*<script type="application\/cf-manifest">[\s\S]*?<\/script>\s*/g, '');
   
   // Вставляем перед закрывающим </div> card-root
   const manifestScript = `\n<script type="application/cf-manifest">${manifest}</script>`;
