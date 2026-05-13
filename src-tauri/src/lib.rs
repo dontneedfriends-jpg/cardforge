@@ -1,6 +1,6 @@
 mod commands;
 
-use commands::{project, csv_ops, template, assets, watcher, card_back, export, import_tts, window};
+use commands::{project, csv_ops, template, assets, watcher, card_back, export, import_tts, window, session};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,6 +43,8 @@ pub fn run() {
             import_tts::parse_tts_json,
             import_tts::slice_tts_spritesheet,
             window::start_drag,
+            session::read_session,
+            session::write_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

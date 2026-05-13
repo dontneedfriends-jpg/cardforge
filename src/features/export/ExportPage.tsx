@@ -6,6 +6,8 @@ import type { PdfExportOptions } from '../../shared/types/project';
 import type { ProgressCallback } from './exportUtils';
 import { ProgressDialog } from '../../shared/components/ProgressDialog';
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { CARD_SIZE_PRESETS, findPreset } from '../../shared/cardSizes';
+import type { CardSize } from '../../shared/types/project';
 
 const useStyles = makeStyles({
   container: {
@@ -63,6 +65,7 @@ export function ExportPage() {
   const defaultBleedMm = useUiStore((s) => s.defaultBleedMm);
   const [format, setFormat] = useState<'png' | 'pdf' | 'tts'>('png');
   const [selectedDeckId, setSelectedDeckId] = useState<string>('');
+  const [overrideCardSize, setOverrideCardSize] = useState<CardSize | null>(null);
   const [status, setStatus] = useState<string>('');
   const [exporting, setExporting] = useState(false);
   const [progressCurrent, setProgressCurrent] = useState<number | undefined>(undefined);
@@ -82,10 +85,13 @@ export function ExportPage() {
   useEffect(() => {
     if (decks.length > 0 && !selectedDeckId) {
       setSelectedDeckId(decks[0].id);
+      setOverrideCardSize(null);
     }
   }, [decks.length, selectedDeckId]);
 
   const selectedDeck = manifest?.decks.find(d => d.id === selectedDeckId);
+  const effectiveCardSize: CardSize = overrideCardSize ?? selectedDeck?.cardSize ?? { widthMm: 63, heightMm: 88, bleedMm: 3 };
+  const selectedPresetName = effectiveCardSize ? findPreset(effectiveCardSize.widthMm, effectiveCardSize.heightMm)?.name : undefined;
 
   const handleExport = useCallback(async () => {
     if (!projectPath || !selectedDeckId || !manifest) return;
@@ -115,19 +121,19 @@ export function ExportPage() {
       const allCards = rows.map(row => renderCardBody(editorHtml, editorCss, row));
 
       if (format === 'png') {
-        await exportAllCardsAsPng(deck.name, allCards, deck.cardSize, options.dpi, projectPath, pc);
+        await exportAllCardsAsPng(deck.name, allCards, effectiveCardSize, options.dpi, projectPath, pc);
         if (!cancelRef.current) setStatus(`Exported ${allCards.length} PNGs successfully`);
         else setStatus('Export cancelled');
       } else if (format === 'tts') {
         setProgressStatus('Capturing cards for TTS...');
         const es = useEditorStore.getState();
         const msg = await exportTtsSpritesheet(
-          deck.name, allCards, es.cardBack, deck.cardSize, options.dpi, projectPath, pc
+          deck.name, allCards, es.cardBack, effectiveCardSize, options.dpi, projectPath, pc
         );
         setStatus(msg || (cancelRef.current ? 'Export cancelled' : 'TTS export error'));
       } else {
         setProgressStatus('Generating print layout...');
-        const printHtml = await generatePrintHtml(allCards, deck.cardSize, options, projectPath);
+        const printHtml = await generatePrintHtml(allCards, effectiveCardSize, options, projectPath);
         setProgressStatus('Opening print dialog...');
         const iframe = document.createElement('iframe');
         iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;';
@@ -157,7 +163,7 @@ export function ExportPage() {
     setProgressCurrent(undefined);
     setProgressTotal(undefined);
     setProgressStatus('');
-  }, [projectPath, selectedDeckId, manifest, format, editorHtml, editorCss, options]);
+  }, [projectPath, selectedDeckId, manifest, format, editorHtml, editorCss, options, overrideCardSize]);
 
   if (!manifest || !projectPath) {
     return (
@@ -187,7 +193,8 @@ export function ExportPage() {
         </Dropdown>
         {selectedDeck && (
           <Text size={200} style={{ color: 'rgba(255,255,255,0.40)' }}>
-            {selectedDeck.cardSize.widthMm} × {selectedDeck.cardSize.heightMm}mm · {decks.find(d => d.id === selectedDeckId)?.name} ({selectedDeck.cardSize.bleedMm}mm bleed)
+            {effectiveCardSize.widthMm} × {effectiveCardSize.heightMm}mm · {selectedDeck.name} ({effectiveCardSize.bleedMm}mm bleed)
+            {overrideCardSize ? ' (override)' : ''}
           </Text>
         )}
       </div>
@@ -246,6 +253,28 @@ export function ExportPage() {
               onChange={(_, data) => setOptions({ ...options, bleed: Math.max(0, Number(data.value) || 0) })}
               style={{ width: 80 }}
             />
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.field} style={{ minWidth: 280 }}>
+            <Text className={styles.label}>Card Size</Text>
+            <Dropdown
+              value={selectedPresetName ? `${selectedPresetName} (${effectiveCardSize.widthMm}×${effectiveCardSize.heightMm}mm)` : `Custom (${effectiveCardSize.widthMm}×${effectiveCardSize.heightMm}mm)`}
+              onOptionSelect={(_e: unknown, data: { optionValue?: string }) => {
+                if (!data.optionValue) return;
+                if (data.optionValue === '__deck__') { setOverrideCardSize(null); return; }
+                const preset = CARD_SIZE_PRESETS.find(p => p.id === data.optionValue);
+                if (preset) setOverrideCardSize({ widthMm: preset.widthMm, heightMm: preset.heightMm, bleedMm: preset.bleedMm });
+              }}
+            >
+              <Option value="__deck__" text="Use deck size">{selectedDeck ? `Use deck size (${selectedDeck.cardSize.widthMm}×${selectedDeck.cardSize.heightMm}mm)` : 'Use deck size'}</Option>
+              {CARD_SIZE_PRESETS.map(p => (
+                <Option key={p.id} value={p.id} text={`${p.name} — ${p.widthMm}×${p.heightMm}mm`}>
+                  {p.name} — {p.widthMm}×{p.heightMm}mm{p.bleedMm > 0 ? ` (${p.bleedMm}mm bleed)` : ''}
+                </Option>
+              ))}
+            </Dropdown>
           </div>
         </div>
 

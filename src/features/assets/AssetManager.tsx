@@ -1,10 +1,21 @@
 import { Text, Button, makeStyles, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem, MessageBar, MessageBarBody, Input, Breadcrumb, BreadcrumbItem } from '@fluentui/react-components';
-import { ImageRegular, DeleteRegular, CopyRegular, OpenRegular, FolderRegular, ArrowUploadRegular, FolderOpenRegular, AddRegular, WandRegular } from '@fluentui/react-icons';
+import { ImageRegular, DeleteRegular, CopyRegular, OpenRegular, FolderRegular, ArrowUploadRegular, AddRegular, WandRegular, SearchRegular, RenameRegular, DismissRegular } from '@fluentui/react-icons';
 import { useProjectStore } from '../../store';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { AssetGeneratorDialog } from '../asset-generator';
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getExtension(name: string): string {
+  const i = name.lastIndexOf('.');
+  return i > 0 ? name.slice(i + 1).toUpperCase() : '';
+}
 
 const useStyles = makeStyles({
   container: {
@@ -27,10 +38,86 @@ const useStyles = makeStyles({
     gap: '8px',
     alignItems: 'center',
   },
+  searchRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 20px',
+    background: 'var(--mica-layer-1)',
+    borderBottom: '1px solid var(--mica-stroke)',
+    flexShrink: 0,
+  },
+  searchInput: {
+    flex: 1,
+  },
+  sortGroup: {
+    display: 'flex',
+    gap: '2px',
+    marginLeft: 'auto',
+  },
+  sortBtn: {
+    fontSize: '11px',
+    padding: '4px 10px',
+    borderRadius: '4px',
+    border: '1px solid var(--mica-stroke)',
+    background: 'var(--mica-base)',
+    color: 'var(--mica-text-tertiary)',
+    cursor: 'pointer',
+    ':hover': { background: 'var(--mica-layer-1)', color: 'var(--mica-text-primary)' },
+  },
+  sortBtnActive: {
+    background: 'var(--mica-accent-secondary)',
+    color: 'var(--mica-accent)',
+    borderTopColor: 'var(--mica-accent)',
+    borderRightColor: 'var(--mica-accent)',
+    borderBottomColor: 'var(--mica-accent)',
+    borderLeftColor: 'var(--mica-accent)',
+  },
   breadcrumb: {
     padding: '8px 20px',
     background: 'var(--mica-layer-1)',
     borderBottom: '1px solid var(--mica-stroke)',
+    flexShrink: 0,
+  },
+  detailStrip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 20px',
+    background: 'var(--mica-layer-1)',
+    borderBottom: '1px solid var(--mica-stroke)',
+    flexShrink: 0,
+  },
+  detailPreview: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '8px',
+    objectFit: 'cover',
+    background: 'var(--mica-layer-2)',
+    flexShrink: 0,
+  },
+  detailInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: 0,
+  },
+  detailName: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: 'var(--mica-text-primary)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  detailMeta: {
+    fontSize: '12px',
+    color: 'var(--mica-text-tertiary)',
+  },
+  detailActions: {
+    display: 'flex',
+    gap: '6px',
+    marginLeft: 'auto',
     flexShrink: 0,
   },
   content: {
@@ -147,6 +234,13 @@ const useStyles = makeStyles({
       boxShadow: 'var(--mica-shadow-md)',
     },
   },
+  assetCardSelected: {
+    borderTopColor: 'var(--mica-accent)',
+    borderRightColor: 'var(--mica-accent)',
+    borderBottomColor: 'var(--mica-accent)',
+    borderLeftColor: 'var(--mica-accent)',
+    boxShadow: '0 0 0 2px var(--mica-accent)',
+  },
   thumbnail: {
     width: '100%',
     height: '96px',
@@ -180,6 +274,26 @@ const useStyles = makeStyles({
     margin: '12px 20px 0',
     flexShrink: 0,
   },
+  renameInput: {
+    fontSize: '13px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    border: '1px solid var(--mica-accent)',
+    background: 'var(--mica-layer-2)',
+    color: 'var(--mica-text-primary)',
+    outline: 'none',
+    width: '100%',
+    fontFamily: 'inherit',
+  },
+  noResults: {
+    gridColumn: '1 / -1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px',
+    color: 'var(--mica-text-tertiary)',
+    gap: '8px',
+  },
 });
 
 interface AssetEntry {
@@ -191,6 +305,8 @@ interface AssetEntry {
   isFolder: boolean;
 }
 
+type SortKey = 'name' | 'size';
+
 export function AssetManager() {
   const styles = useStyles();
   const projectPath = useProjectStore((s) => s.projectPath);
@@ -201,6 +317,11 @@ export function AssetManager() {
   const [newFolderName, setNewFolderName] = useState('');
   const [generatorDialog, setGeneratorDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortKey>('name');
+  const [selectedAsset, setSelectedAsset] = useState<AssetEntry | null>(null);
+  const [renamingAsset, setRenamingAsset] = useState<AssetEntry | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const loadAssets = useCallback(async () => {
     if (!projectPath) return;
@@ -217,27 +338,22 @@ export function AssetManager() {
   useEffect(() => {
     async function init() {
       if (!projectPath) return;
-      // Ensure the assets directory exists first
       try {
         await invoke('create_asset_folder', { projectPath, folderPath: 'assets' });
-      } catch { /* папка уже существует — это нормально */ }
+      } catch {}
       await loadAssets();
     }
     init();
   }, [loadAssets, projectPath]);
 
-  // Build folder tree
   const folders = useMemo(() => {
     const folderSet = new Set<string>();
     folderSet.add('assets');
-    
     assets.forEach(asset => {
       if (!asset.relativePath) return;
-      
       if (asset.isFolder) {
         folderSet.add(asset.relativePath);
       }
-      // Also add parent folders
       const parts = asset.relativePath.split('/');
       let path = '';
       for (let i = 0; i < parts.length - 1; i++) {
@@ -245,21 +361,31 @@ export function AssetManager() {
         folderSet.add(path);
       }
     });
-    
     return Array.from(folderSet).sort();
   }, [assets]);
 
-  // Get items in current folder
   const currentItems = useMemo(() => {
-    return (assets || []).filter(asset => {
+    let items = (assets || []).filter(asset => {
       if (!asset || !asset.relativePath) return false;
       const lastSlashIndex = asset.relativePath.lastIndexOf('/');
       const parent = lastSlashIndex === -1 ? '' : asset.relativePath.substring(0, lastSlashIndex);
       return parent === currentFolder;
     });
-  }, [assets, currentFolder]);
 
-  // Breadcrumb path
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(a => a.name.toLowerCase().includes(q));
+    }
+
+    items.sort((a, b) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      if (sortBy === 'size') return b.sizeBytes - a.sizeBytes;
+      return a.name.localeCompare(b.name);
+    });
+
+    return items;
+  }, [assets, currentFolder, searchQuery, sortBy]);
+
   const breadcrumbParts = currentFolder.split('/');
 
   const handleImport = async () => {
@@ -267,40 +393,32 @@ export function AssetManager() {
       setError('No project is open');
       return;
     }
-    
     setError(null);
-    
     try {
-      const selected = await open({ 
-        multiple: true, 
-        filters: [{ 
-          name: 'Images & Fonts', 
-          extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ttf', 'otf'] 
-        }] 
+      const selected = await open({
+        multiple: true,
+        filters: [{
+          name: 'Images & Fonts',
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ttf', 'otf'],
+        }],
       });
-      
       if (!selected) return;
-      
       const files = Array.isArray(selected) ? selected : [selected];
       let successCount = 0;
       const errors: string[] = [];
-      
       for (const file of files) {
         try {
-          // [Import] Importing to folder handled by Tauri
-          await invoke('import_asset', { 
-            projectPath, 
+          await invoke('import_asset', {
+            projectPath,
             sourcePath: file,
-            targetFolder: currentFolder 
+            targetFolder: currentFolder,
           });
           successCount++;
         } catch (e: any) {
           const fileName = file.split(/[/\\]/).pop() || file;
           errors.push(`${fileName}: ${e?.message || e}`);
-          console.error('Failed to import:', file, e);
         }
       }
-      
       if (successCount > 0) {
         await loadAssets();
         if (errors.length > 0) {
@@ -316,11 +434,9 @@ export function AssetManager() {
 
   const handleCreateFolder = async () => {
     if (!projectPath || !newFolderName.trim()) return;
-    
-    const folderPath = currentFolder === 'assets' 
+    const folderPath = currentFolder === 'assets'
       ? `assets/${newFolderName.trim()}`
       : `${currentFolder}/${newFolderName.trim()}`;
-    
     try {
       setError(null);
       await invoke('create_asset_folder', { projectPath, folderPath });
@@ -339,6 +455,7 @@ export function AssetManager() {
       } else {
         await invoke('delete_asset', { assetPath: asset.path });
       }
+      if (selectedAsset?.path === asset.path) setSelectedAsset(null);
       await loadAssets();
     } catch (e: any) {
       setError(`Failed to delete: ${e?.message || e}`);
@@ -349,8 +466,43 @@ export function AssetManager() {
   const handleCopyPath = async (relativePath: string) => {
     try {
       await navigator.clipboard.writeText(relativePath);
-    } catch (e) {
+    } catch {
       setError('Failed to copy path');
+    }
+  };
+
+  const handleRenameStart = (asset: AssetEntry) => {
+    setRenamingAsset(asset);
+    setRenameValue(asset.name);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renamingAsset || !renameValue.trim() || renameValue === renamingAsset.name) {
+      setRenamingAsset(null);
+      return;
+    }
+    try {
+      const dir = renamingAsset.path.substring(0, renamingAsset.path.lastIndexOf('/') + 1);
+      const newPath = `${dir}${renameValue.trim()}`;
+      await invoke('move_asset', { sourcePath: renamingAsset.path, destPath: newPath });
+      setRenamingAsset(null);
+      if (selectedAsset?.path === renamingAsset.path) {
+        setSelectedAsset({ ...selectedAsset, name: renameValue.trim(), path: newPath, relativePath: `${currentFolder}/${renameValue.trim()}` });
+      }
+      await loadAssets();
+    } catch (e: any) {
+      setError(`Failed to rename: ${e?.message || e}`);
+      setRenamingAsset(null);
+    }
+  };
+
+  const handleSelect = (asset: AssetEntry) => {
+    if (renamingAsset) return;
+    if (asset.isFolder) {
+      setCurrentFolder(asset.relativePath);
+      setSelectedAsset(null);
+    } else {
+      setSelectedAsset(prev => prev?.path === asset.path ? null : asset);
     }
   };
 
@@ -373,30 +525,41 @@ export function AssetManager() {
       <div className={styles.header}>
         <Text size={400} weight="semibold">Assets</Text>
         <div className={styles.toolbar}>
-            <Button 
-            icon={<AddRegular />} 
-            size="small" 
-            onClick={() => setNewFolderDialog(true)}
-            appearance="subtle"
-          >
+          <Button icon={<AddRegular />} size="small" onClick={() => setNewFolderDialog(true)} appearance="subtle">
             New Folder
           </Button>
-          <Button
-            icon={<WandRegular />}
-            size="small"
-            onClick={() => setGeneratorDialog(true)}
-            appearance="subtle"
-          >
+          <Button icon={<WandRegular />} size="small" onClick={() => setGeneratorDialog(true)} appearance="subtle">
             Generate
           </Button>
-          <Button 
-            icon={<ArrowUploadRegular />} 
-            size="small" 
-            onClick={handleImport}
-            appearance="primary"
-          >
+          <Button icon={<ArrowUploadRegular />} size="small" onClick={handleImport} appearance="primary">
             Import
           </Button>
+        </div>
+      </div>
+
+      <div className={styles.searchRow}>
+        <Input
+          className={styles.searchInput}
+          placeholder="Search assets..."
+          contentBefore={<SearchRegular />}
+          value={searchQuery}
+          onChange={(_e, d) => setSearchQuery(d.value)}
+          appearance="outline"
+          size="small"
+        />
+        <div className={styles.sortGroup}>
+          <button
+            className={`${styles.sortBtn} ${sortBy === 'name' ? styles.sortBtnActive : ''}`}
+            onClick={() => setSortBy('name')}
+          >
+            Name
+          </button>
+          <button
+            className={`${styles.sortBtn} ${sortBy === 'size' ? styles.sortBtnActive : ''}`}
+            onClick={() => setSortBy('size')}
+          >
+            Size
+          </button>
         </div>
       </div>
 
@@ -408,6 +571,7 @@ export function AssetManager() {
               onClick={() => {
                 const path = breadcrumbParts.slice(0, index + 1).join('/');
                 setCurrentFolder(path);
+                setSelectedAsset(null);
               }}
               style={{ cursor: 'pointer' }}
             >
@@ -417,6 +581,30 @@ export function AssetManager() {
         </Breadcrumb>
       </div>
 
+      {selectedAsset && !selectedAsset.isFolder && (
+        <div className={styles.detailStrip}>
+          {selectedAsset.thumbnailBase64 ? (
+            <img src={selectedAsset.thumbnailBase64} alt={selectedAsset.name} className={styles.detailPreview} />
+          ) : (
+            <div className={styles.detailPreview} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mica-text-tertiary)' }}>
+              <ImageRegular fontSize={24} />
+            </div>
+          )}
+          <div className={styles.detailInfo}>
+            <div className={styles.detailName}>{selectedAsset.name}</div>
+            <div className={styles.detailMeta}>
+              {formatSize(selectedAsset.sizeBytes)} &middot; {getExtension(selectedAsset.name)} &middot; {selectedAsset.relativePath}
+            </div>
+          </div>
+          <div className={styles.detailActions}>
+            <Button icon={<CopyRegular />} size="small" appearance="subtle" onClick={() => handleCopyPath(selectedAsset.relativePath)} title="Copy relative path" />
+            <Button icon={<OpenRegular />} size="small" appearance="subtle" onClick={() => invoke('open_asset_externally', { assetPath: selectedAsset.path }).catch(() => {})} title="Open externally" />
+            <Button icon={<RenameRegular />} size="small" appearance="subtle" onClick={() => handleRenameStart(selectedAsset)} title="Rename" />
+            <Button icon={<DismissRegular />} size="small" appearance="subtle" onClick={() => setSelectedAsset(null)} title="Deselect" />
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className={styles.errorBar}>
           <MessageBar intent="error">
@@ -424,19 +612,18 @@ export function AssetManager() {
           </MessageBar>
         </div>
       )}
-      
+
       <div className={styles.content}>
         <div className={styles.folderSidebar}>
           {folders.map(folder => {
             const name = folder.split('/').pop() || folder;
             const depth = folder.split('/').length - 1;
-            
             return (
               <div
                 key={folder}
                 className={`${styles.folderItem} ${folder === currentFolder ? styles.folderActive : ''}`}
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
-                onClick={() => setCurrentFolder(folder)}
+                onClick={() => { setCurrentFolder(folder); setSelectedAsset(null); }}
               >
                 <FolderRegular className={styles.folderIcon} />
                 <span>{name}</span>
@@ -446,7 +633,7 @@ export function AssetManager() {
         </div>
 
         <div className={styles.gridArea}>
-          {currentItems.length === 0 ? (
+          {currentItems.length === 0 && !searchQuery ? (
             <div className={styles.empty}>
               <ImageRegular fontSize={48} />
               <Text size={300}>No assets in this folder</Text>
@@ -454,17 +641,20 @@ export function AssetManager() {
                 Import images or create folders to organize assets
               </Text>
             </div>
+          ) : currentItems.length === 0 && searchQuery ? (
+            <div className={styles.empty}>
+              <SearchRegular fontSize={48} />
+              <Text size={300}>No results for &ldquo;{searchQuery}&rdquo;</Text>
+            </div>
           ) : (
             <div className={styles.grid}>
               {currentItems.map((asset) => (
                 <Menu key={asset.path}>
                   <MenuTrigger disableButtonEnhancement>
                     <div
-                      className={asset.isFolder ? styles.folderCard : styles.assetCard}
+                      className={`${asset.isFolder ? styles.folderCard : styles.assetCard} ${selectedAsset?.path === asset.path ? styles.assetCardSelected : ''}`}
                       title={asset.name}
-                      onDoubleClick={() => {
-                        if (asset.isFolder) setCurrentFolder(asset.relativePath);
-                      }}
+                      onClick={() => handleSelect(asset)}
                       draggable={!asset.isFolder}
                       onDragStart={(e) => {
                         if (!asset.isFolder) {
@@ -476,31 +666,28 @@ export function AssetManager() {
                     >
                       {asset.isFolder ? (
                         <>
-                          <div className={styles.folderIconLarge}>
-                            <FolderOpenRegular />
-                          </div>
+                          <div className={styles.folderIconLarge}><FolderRegular /></div>
                           <div className={styles.fileName}>{asset.name}</div>
                         </>
+                      ) : renamingAsset?.path === asset.path ? (
+                        <input
+                          className={styles.renameInput}
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onBlur={handleRenameSubmit}
+                          onKeyDown={e => { if (e.key === 'Enter') handleRenameSubmit(); if (e.key === 'Escape') setRenamingAsset(null); }}
+                          onClick={e => e.stopPropagation()}
+                          autoFocus
+                        />
                       ) : asset.thumbnailBase64 ? (
                         <>
-                          <img 
-                            src={asset.thumbnailBase64} 
-                            alt={asset.name} 
-                            className={styles.thumbnail}
-                          />
+                          <img src={asset.thumbnailBase64} alt={asset.name} className={styles.thumbnail} />
                           <div className={styles.fileName}>{asset.name}</div>
-                          <div className={styles.fileSize}>
-                            {(asset.sizeBytes / 1024).toFixed(1)} KB
-                          </div>
+                          <div className={styles.fileSize}>{formatSize(asset.sizeBytes)}</div>
                         </>
                       ) : (
                         <>
-                          <div className={styles.thumbnail} style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            color: 'var(--mica-text-tertiary)'
-                          }}>
+                          <div className={styles.thumbnail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mica-text-tertiary)' }}>
                             <ImageRegular fontSize={24} />
                           </div>
                           <div className={styles.fileName}>{asset.name}</div>
@@ -510,17 +697,14 @@ export function AssetManager() {
                   </MenuTrigger>
                   <MenuPopover>
                     <MenuList>
-                      <MenuItem icon={<CopyRegular />} onClick={() => handleCopyPath(asset.relativePath)}>
-                        Copy relative path
-                      </MenuItem>
-                      {!asset.isFolder && (
-                        <MenuItem icon={<OpenRegular />} onClick={() => invoke('open_asset_externally', { assetPath: asset.path }).catch((e) => console.warn('[Assets] Failed to open externally:', e))}>
-                          Open externally
-                        </MenuItem>
+                      {!asset.isFolder && renamingAsset?.path !== asset.path && (
+                        <MenuItem icon={<RenameRegular />} onClick={() => handleRenameStart(asset)}>Rename</MenuItem>
                       )}
-                      <MenuItem icon={<DeleteRegular />} onClick={() => setDeleteTarget(asset)}>
-                        Delete
-                      </MenuItem>
+                      <MenuItem icon={<CopyRegular />} onClick={() => handleCopyPath(asset.relativePath)}>Copy relative path</MenuItem>
+                      {!asset.isFolder && (
+                        <MenuItem icon={<OpenRegular />} onClick={() => invoke('open_asset_externally', { assetPath: asset.path }).catch(() => {})}>Open externally</MenuItem>
+                      )}
+                      <MenuItem icon={<DeleteRegular />} onClick={() => setDeleteTarget(asset)}>Delete</MenuItem>
                     </MenuList>
                   </MenuPopover>
                 </Menu>
@@ -531,39 +715,31 @@ export function AssetManager() {
       </div>
 
       <AssetGeneratorDialog open={generatorDialog} onOpenChange={setGeneratorDialog} onSaved={loadAssets} />
-      <Dialog open={newFolderDialog} onOpenChange={() => setNewFolderDialog(false)}>
+      <Dialog open={newFolderDialog} onOpenChange={() => { setNewFolderDialog(false); setNewFolderName(''); }}>
         <DialogSurface>
           <DialogBody>
             <DialogTitle>Create New Folder</DialogTitle>
             <DialogContent>
-              <Input
-                placeholder="Folder name"
-                value={newFolderName}
-                onChange={(_e, data) => setNewFolderName(data.value)}
-                autoFocus
-              />
+              <Input placeholder="Folder name" value={newFolderName} onChange={(_e, data) => setNewFolderName(data.value)} autoFocus />
             </DialogContent>
             <DialogActions>
-              <Button appearance="secondary" onClick={() => setNewFolderDialog(false)}>Cancel</Button>
-              <Button appearance="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
-                Create
-              </Button>
+              <Button appearance="secondary" onClick={() => { setNewFolderDialog(false); setNewFolderName(''); }}>Cancel</Button>
+              <Button appearance="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>Create</Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>
       </Dialog>
-
       <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
         <DialogSurface>
           <DialogBody>
             <DialogTitle>Delete {deleteTarget?.isFolder ? 'Folder' : 'Asset'}?</DialogTitle>
             <DialogContent>
-              This action cannot be undone. {deleteTarget?.isFolder ? 'All contents will be deleted.' : 'The file will be permanently removed.'}
+              {deleteTarget?.isFolder ? 'All contents will be deleted.' : `"${deleteTarget?.name}" will be permanently removed.`}
             </DialogContent>
             <DialogActions>
               <Button appearance="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-              <Button 
-                appearance="primary" 
+              <Button
+                appearance="primary"
                 style={{ background: 'var(--mica-error)', borderColor: 'var(--mica-error)' }}
                 onClick={() => deleteTarget && handleDelete(deleteTarget)}
               >

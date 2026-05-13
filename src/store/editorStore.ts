@@ -17,6 +17,8 @@ interface EditorStoreState {
   currentDeckPath: string | null;
   currentCardSize: CardSize | null;
   cardBack: CardBackDesign;
+  pastCardBacks: CardBackDesign[];
+  futureCardBacks: CardBackDesign[];
   cardBackHtml: string;
   cardBackCss: string;
   cardBackEditorMode: 'code' | 'visual';
@@ -32,6 +34,8 @@ interface EditorStoreActions {
   setEditorMode: (mode: EditorMode) => void;
   setPreviewCardIndex: (idx: number) => void;
   setCardBack: (design: CardBackDesign) => void;
+  undoCardBack: () => void;
+  redoCardBack: () => void;
   setCardBackHtml: (val: string) => void;
   setCardBackCss: (val: string) => void;
   setCardBackEditorMode: (mode: 'code' | 'visual') => void;
@@ -213,6 +217,8 @@ function parseCardBackHtmlCss(html: string, css: string): CardBackDesign {
   return d;
 }
 
+const MAX_CARD_BACK_HISTORY = 50;
+
 export const useEditorStore = create<EditorStore>()((set, get) => ({
   html: '',
   css: '',
@@ -222,6 +228,8 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   currentDeckPath: null,
   currentCardSize: null,
   cardBack: { ...defaultCardBack },
+  pastCardBacks: [],
+  futureCardBacks: [],
   cardBackHtml: '',
   cardBackCss: '',
   cardBackEditorMode: 'visual',
@@ -235,9 +243,49 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   setEditorMode: (mode: EditorMode) => set({ editorMode: mode }),
   setPreviewCardIndex: (idx: number) => set({ previewCardIndex: idx }),
   setCardBack: (design: CardBackDesign) => {
+    const prev = get().cardBack;
+    if (prev === design) return;
     const { html, css } = cardBackDesignToHtmlCss(design);
-    set({ cardBack: design, cardBackHtml: html, cardBackCss: css, isDirty: true });
+    set({
+      pastCardBacks: [...get().pastCardBacks.slice(-(MAX_CARD_BACK_HISTORY - 1)), { ...prev }],
+      futureCardBacks: [],
+      cardBack: design,
+      cardBackHtml: html,
+      cardBackCss: css,
+      isDirty: true,
+    });
   },
+
+  undoCardBack: () => {
+    const { pastCardBacks, cardBack } = get();
+    if (pastCardBacks.length === 0) return;
+    const prev = pastCardBacks[pastCardBacks.length - 1];
+    const { html, css } = cardBackDesignToHtmlCss(prev);
+    set({
+      pastCardBacks: pastCardBacks.slice(0, -1),
+      futureCardBacks: [...get().futureCardBacks, { ...cardBack }],
+      cardBack: prev,
+      cardBackHtml: html,
+      cardBackCss: css,
+      isDirty: true,
+    });
+  },
+
+  redoCardBack: () => {
+    const { futureCardBacks, cardBack } = get();
+    if (futureCardBacks.length === 0) return;
+    const next = futureCardBacks[futureCardBacks.length - 1];
+    const { html, css } = cardBackDesignToHtmlCss(next);
+    set({
+      futureCardBacks: futureCardBacks.slice(0, -1),
+      pastCardBacks: [...get().pastCardBacks, { ...cardBack }],
+      cardBack: next,
+      cardBackHtml: html,
+      cardBackCss: css,
+      isDirty: true,
+    });
+  },
+
   setCardBackHtml: (val: string) => set({ cardBackHtml: val, isDirty: true }),
   setCardBackCss: (val: string) => set({ cardBackCss: val, isDirty: true }),
   setCardBackEditorMode: (mode: 'code' | 'visual') => set({ cardBackEditorMode: mode }),
@@ -361,7 +409,7 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     const loaded = await get().loadCanvas(deckPath);
     const files = await invoke<{ html: string; css: string }>('read_template', { deckPath });
     const manifest = useProjectStore.getState().manifest;
-    const deckMeta = manifest?.decks.find(d => deckPath.includes(d.path));
+    const deckMeta = manifest?.decks.find(d => deckPath === d.path || deckPath.endsWith('/' + d.path) || deckPath.endsWith('\\' + d.path));
     set({
       html: files.html,
       css: files.css,

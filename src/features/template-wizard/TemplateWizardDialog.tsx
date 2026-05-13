@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Text, makeStyles, Button, Dialog, DialogSurface, DialogTitle, DialogBody } from '@fluentui/react-components';
-import { ChevronLeftRegular, ChevronRightRegular, DismissRegular } from '@fluentui/react-icons';
+import { Text, makeStyles, Button, Dialog, DialogSurface, DialogTitle, DialogBody, Tooltip } from '@fluentui/react-components';
+import { ChevronLeftRegular, ChevronRightRegular, DismissRegular, ArrowSyncRegular } from '@fluentui/react-icons';
 import { cardTemplates, type CardTemplate } from '../../shared/templates/cardTemplates';
 import { CARD_SIZE_PRESETS, type CardSizePreset } from '../../shared/cardSizes';
 import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../../store';
@@ -9,8 +9,38 @@ import { applyThemeToTemplate, generateRichPalette } from './applyTheme';
 import { invoke } from '@tauri-apps/api/core';
 import type { DeckMeta } from '../../shared/types/project';
 
+function buildPreviewDoc(html: string, css: string): string {
+  const doc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+${css}
+</style>
+</head>
+<body>${html}</body>
+</html>`;
+  return doc;
+}
+
+function getThemeLabel(palette: ColorPalette): string {
+  const hue = palette.hue;
+  let hueName: string;
+  if (hue < 30 || hue >= 330) hueName = 'Red';
+  else if (hue < 90) hueName = 'Gold';
+  else if (hue < 150) hueName = 'Green';
+  else if (hue < 210) hueName = 'Teal';
+  else if (hue < 270) hueName = 'Blue';
+  else hueName = 'Purple';
+  const mode = palette.isLightOnDark ? 'Dark' : 'Light';
+  return `${mode} ${hueName}`;
+}
+
 const useStyles = makeStyles({
-  dialogSurface: { maxWidth: '720px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' },
+  dialogSurface: { maxWidth: '760px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' },
   dialogBody: { display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden', flex: 1 },
   content: { overflowY: 'auto', overflowX: 'hidden', flex: 1, padding: '4px' },
   stepIndicator: { display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '8px' },
@@ -21,7 +51,7 @@ const useStyles = makeStyles({
   grid3: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' },
   sizeCard: {
     padding: '14px', borderRadius: '10px', background: 'var(--mica-layer-1)',
-    border: '1px solid var(--mica-stroke)', cursor: 'pointer', textAlign: 'center' as const,
+    border: '1px solid var(--mica-stroke)', cursor: 'pointer', textAlign: 'center',
     ':hover': { background: 'var(--mica-layer-2)', transform: 'translateY(-1px)' },
   },
   sizeCardSelected: {
@@ -63,9 +93,12 @@ const useStyles = makeStyles({
     borderLeftColor: 'var(--mica-accent)',
     boxShadow: '0 0 0 2px var(--mica-accent)',
   },
-  swatches: { display: 'flex', gap: '4px', marginBottom: '8px' },
-  swatch: { width: '24px', height: '24px', borderRadius: '4px', border: '1px solid var(--mica-stroke)' },
-  previewSvg: { width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', marginBottom: '4px' },
+  themePreviewFrame: {
+    width: '100%', height: '140px', borderRadius: '6px',
+    overflow: 'hidden', marginBottom: '8px', position: 'relative' as const,
+  },
+  swatches: { display: 'flex', gap: '4px', marginBottom: '4px' },
+  swatch: { width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--mica-stroke)' },
   actions: { display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--mica-stroke)' },
   nameInput: {
     width: '100%', padding: '10px 14px', borderRadius: '8px',
@@ -79,12 +112,31 @@ const useStyles = makeStyles({
       borderLeftColor: 'var(--mica-accent)',
     },
   },
-  previewCard: {
-    width: '200px', height: '280px', borderRadius: '10px', overflow: 'hidden',
-    margin: '0 auto', border: '1px solid var(--mica-stroke)',
-    position: 'relative' as const,
+  reviewLayout: { display: 'flex', gap: '20px' },
+  previewColumn: { flex: '0 0 auto' },
+  reviewCardFrame: {
+    width: '220px', height: '308px', borderRadius: '10px', overflow: 'hidden',
+    border: '1px solid var(--mica-stroke)', position: 'relative' as const,
   },
-  categoryLabel: { fontSize: '11px', fontWeight: 600, color: 'var(--mica-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', marginTop: '12px' },
+  summaryColumn: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' },
+  summaryCard: {
+    padding: '14px', borderRadius: '10px',
+    background: 'var(--mica-layer-1)', border: '1px solid var(--mica-stroke)',
+  },
+  summaryGrid: {
+    display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 16px', fontSize: '13px',
+  },
+  summaryLabel: { color: 'var(--mica-text-tertiary)' },
+  summaryValue: { color: 'var(--mica-text-primary)', fontWeight: 500 },
+  sectionLabel: {
+    fontSize: '11px', fontWeight: 600,
+    color: 'var(--mica-text-tertiary)', textTransform: 'uppercase',
+    letterSpacing: '0.5px', marginBottom: '8px',
+  },
+  hueBadge: {
+    display: 'inline-block', padding: '2px 8px', borderRadius: '4px',
+    fontSize: '11px', fontWeight: 600,
+  },
 });
 
 const STEPS = ['Size', 'Layout', 'Theme', 'Review'];
@@ -95,7 +147,7 @@ const SIZE_PRESETS = CARD_SIZE_PRESETS.filter(p =>
 );
 
 interface GeneratedTheme {
-  palette: ColorPalette;
+  palette: ColorPalette & { accent: string };
   html: string;
   css: string;
   backgroundSvg: string;
@@ -216,7 +268,11 @@ export function TemplateWizardDialog({ open, onOpenChange }: TemplateWizardDialo
   const renderStepDots = () => (
     <div className={styles.stepIndicator}>
       {STEPS.map((_label, i) => (
-        <div key={i} className={i < step ? styles.stepDotDone : i === step ? styles.stepDotActive : styles.stepDot} title={STEP_LABELS[i]} />
+        <div
+          key={i}
+          className={i < step ? styles.stepDotDone : i === step ? styles.stepDotActive : styles.stepDot}
+          title={STEP_LABELS[i]}
+        />
       ))}
     </div>
   );
@@ -233,7 +289,7 @@ export function TemplateWizardDialog({ open, onOpenChange }: TemplateWizardDialo
         <Text size={400} weight="semibold" style={{ marginBottom: '12px', display: 'block' }}>Choose Card Size</Text>
         {grouped.map(group => (
           <div key={group.label}>
-            <div className={styles.categoryLabel}>{group.label}</div>
+            <div className={styles.sectionLabel}>{group.label}</div>
             <div className={styles.grid3}>
               {SIZE_PRESETS.filter(p => group.ids.includes(p.id)).map(p => (
                 <div
@@ -274,28 +330,47 @@ export function TemplateWizardDialog({ open, onOpenChange }: TemplateWizardDialo
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <Text size={400} weight="semibold">Choose Color Theme</Text>
-        <Button size="small" appearance="outline" onClick={handleGenerateNewThemes}>Generate New</Button>
+        <Tooltip content="Generate 4 new themes" relationship="label">
+          <Button size="small" appearance="outline" icon={<ArrowSyncRegular />} onClick={handleGenerateNewThemes}>
+            Regenerate
+          </Button>
+        </Tooltip>
       </div>
       <div className={styles.themeGrid}>
         {themes.map((t, i) => {
-          const p = t.palette;
+          const label = getThemeLabel(t.palette);
           return (
             <div
               key={i}
               className={selectedThemeIdx === i ? `${styles.themeCard} ${styles.themeCardSelected}` : styles.themeCard}
               onClick={() => setSelectedThemeIdx(i)}
             >
-              <div className={styles.swatches}>
-                <div className={styles.swatch} style={{ background: p.front }} title="Front" />
-                <div className={styles.swatch} style={{ background: p.back }} title="Back" />
-                <div className={styles.swatch} style={{ background: p.background }} title="Background" />
-                <div className={styles.swatch} style={{ background: p.outline }} title="Outline" />
-                <div className={styles.swatch} style={{ background: p.color }} title="Color" />
+              <div className={styles.themePreviewFrame} style={{ background: 'var(--mica-layer-2)' }}>
+                <iframe
+                  srcDoc={buildPreviewDoc(t.html, t.css)}
+                  style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+                  title={label}
+                />
               </div>
-              <div className={styles.previewSvg} dangerouslySetInnerHTML={{ __html: t.backgroundSvg.substring(0, 1000) + '</svg>' }} />
-              <Text size={200} style={{ color: 'var(--mica-text-tertiary)' }}>
-                {p.isLightOnDark ? 'Light on dark' : 'Dark on light'}
-              </Text>
+              <div className={styles.swatches}>
+                <div className={styles.swatch} style={{ background: t.palette.front }} />
+                <div className={styles.swatch} style={{ background: t.palette.back }} />
+                <div className={styles.swatch} style={{ background: t.palette.background }} />
+                <div className={styles.swatch} style={{ background: t.palette.outline }} />
+                <div className={styles.swatch} style={{ background: t.palette.color }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text size={200} style={{ color: 'var(--mica-text-tertiary)' }}>{label}</Text>
+                <span
+                  className={styles.hueBadge}
+                  style={{
+                    background: t.palette.front,
+                    color: t.palette.isLightOnDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)',
+                  }}
+                >
+                  {t.palette.isLightOnDark ? '🌙' : '☀️'}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -303,29 +378,54 @@ export function TemplateWizardDialog({ open, onOpenChange }: TemplateWizardDialo
     </div>
   );
 
-  const renderReviewStep = () => (
-    <div>
-      <Text size={400} weight="semibold" style={{ marginBottom: '12px', display: 'block' }}>Name & Create</Text>
-      <div style={{ marginBottom: '16px' }}>
-        <Text size={200} style={{ color: 'var(--mica-text-tertiary)', marginBottom: '6px', display: 'block' }}>Deck Name</Text>
-        <input
-          type="text" value={deckName} onChange={(e) => setDeckName(e.target.value)}
-          className={styles.nameInput} placeholder="Enter deck name" autoFocus
-        />
+  const renderReviewStep = () => {
+    const palette = selectedTheme?.palette;
+    const themeLabel = palette ? getThemeLabel(palette) : '';
+
+    return (
+      <div>
+        <Text size={400} weight="semibold" style={{ marginBottom: '16px', display: 'block' }}>Review & Create</Text>
+        <div className={styles.reviewLayout}>
+          <div className={styles.previewColumn}>
+            <div className={styles.reviewCardFrame} style={{ background: 'var(--mica-layer-2)' }}>
+              {selectedTheme && (
+                <iframe
+                  srcDoc={buildPreviewDoc(selectedTheme.html, selectedTheme.css)}
+                  style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+                  title="Card preview"
+                />
+              )}
+            </div>
+          </div>
+
+          <div className={styles.summaryColumn}>
+            <div className={styles.summaryCard}>
+              <div className={styles.sectionLabel}>Summary</div>
+              <div className={styles.summaryGrid}>
+                <span className={styles.summaryLabel}>Layout</span>
+                <span className={styles.summaryValue}>{selectedTemplate.name}</span>
+                <span className={styles.summaryLabel}>Size</span>
+                <span className={styles.summaryValue}>{selectedSize.name} ({selectedSize.widthMm}×{selectedSize.heightMm}mm)</span>
+                <span className={styles.summaryLabel}>Theme</span>
+                <span className={styles.summaryValue}>{themeLabel}</span>
+                <span className={styles.summaryLabel}>Sample cards</span>
+                <span className={styles.summaryValue}>{selectedTemplate.sampleData.length} rows</span>
+              </div>
+            </div>
+
+            <div className={styles.summaryCard}>
+              <div className={styles.sectionLabel}>Deck Name</div>
+              <input
+                type="text" value={deckName} onChange={(e) => setDeckName(e.target.value)}
+                className={styles.nameInput} placeholder="Enter deck name" autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <Text size={200} style={{ color: 'var(--mica-text-tertiary)', marginBottom: '8px', display: 'block' }}>Preview</Text>
-      <div className={styles.previewCard} style={{ background: 'var(--mica-layer-2)' }}>
-        {selectedTheme && (
-          <div dangerouslySetInnerHTML={{ __html: selectedTheme.html }} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '8px' }}>
-        <Text size={200} style={{ color: 'var(--mica-text-tertiary)' }}>
-          {selectedTemplate.name} · {selectedSize.name} ({selectedSize.widthMm}×{selectedSize.heightMm}mm)
-        </Text>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={(_e, data) => { if (!creating) onOpenChange(data.open); }}>

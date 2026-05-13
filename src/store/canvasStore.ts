@@ -474,11 +474,12 @@ export const useCanvasStore = create<CanvasStore>()(
         state.past.push(snapshot(state.elements));
         if (state.past.length > MAX_HISTORY) state.past.shift();
         state.future = [];
+        const cloned = snapshot([state.clipboard])[0];
         const newEl: CanvasElement = {
-          ...state.clipboard,
+          ...cloned,
           id: generateId(),
-          x: state.clipboard.x + 20,
-          y: state.clipboard.y + 20,
+          x: cloned.x + 20,
+          y: cloned.y + 20,
           zIndex: state.elements.length,
         };
         state.elements.push(newEl);

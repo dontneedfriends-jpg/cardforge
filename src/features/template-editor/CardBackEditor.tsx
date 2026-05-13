@@ -1,7 +1,7 @@
 import {
-  Text, makeStyles, Input, Slider, Dropdown, Option, Button, Label, tokens
+  Text, makeStyles, Input, Slider, Dropdown, Option, Button, Label, tokens, Tooltip
 } from '@fluentui/react-components';
-import { SaveRegular } from '@fluentui/react-icons';
+import { SaveRegular, ArrowUndoRegular, ArrowRedoRegular } from '@fluentui/react-icons';
 import { useEditorStore } from '../../store';
 import type { CardBackDesign } from '../../shared/types/project';
 
@@ -119,10 +119,23 @@ const symbolPresets = [
 
 import { getPatternCss } from '../../shared/utils/patternCss';
 
+const PRESET_COLORS = [
+  { label: 'Dark Navy', top: '#1a0a2e', mid: '#1f1240', bottom: '#2a1a4e' },
+  { label: 'Crimson', top: '#2e0a0a', mid: '#401212', bottom: '#4e1a1a' },
+  { label: 'Deep Green', top: '#0a2e1a', mid: '#124020', bottom: '#1a4e2a' },
+  { label: 'Royal Purple', top: '#1a0a3e', mid: '#221250', bottom: '#301a5e' },
+  { label: 'Shadow Black', top: '#111111', mid: '#1a1a1a', bottom: '#222222' },
+  { label: 'Midnight Blue', top: '#0a1628', mid: '#0e1e38', bottom: '#142848' },
+];
+
 export function CardBackEditor() {
   const styles = useStyles();
   const cardBack = useEditorStore((s) => s.cardBack);
   const setCardBack = useEditorStore((s) => s.setCardBack);
+  const undoCardBack = useEditorStore((s) => s.undoCardBack);
+  const redoCardBack = useEditorStore((s) => s.redoCardBack);
+  const pastCardBacks = useEditorStore((s) => s.pastCardBacks);
+  const futureCardBacks = useEditorStore((s) => s.futureCardBacks);
   const saveCardBack = useEditorStore((s) => s.saveCardBack);
   const isDirty = useEditorStore((s) => s.isDirty);
 
@@ -161,6 +174,22 @@ export function CardBackEditor() {
 
         <div className={styles.section}>
           <Text size={400} weight="semibold">Gradient</Text>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {PRESET_COLORS.map((p) => (
+              <Tooltip key={p.label} content={p.label} relationship="label">
+                <button
+                  style={{
+                    width: '24px', height: '24px', borderRadius: '6px', border: '2px solid transparent',
+                    background: `linear-gradient(135deg, ${p.top} 0%, ${p.mid} 50%, ${p.bottom} 100%)`,
+                    cursor: 'pointer',
+                    outline: cardBack.backgroundTop === p.top ? '2px solid var(--mica-accent)' : undefined,
+                    outlineOffset: '2px',
+                  }}
+                  onClick={() => update({ backgroundTop: p.top, backgroundMid: p.mid, backgroundBottom: p.bottom })}
+                />
+              </Tooltip>
+            ))}
+          </div>
           {colorField('Top color', 'backgroundTop')}
           {colorField('Middle color', 'backgroundMid')}
           {colorField('Bottom color', 'backgroundBottom')}
@@ -279,7 +308,15 @@ export function CardBackEditor() {
           )}
         </div>
 
-        <div className={styles.toolbar}>
+        <div className={styles.toolbar} style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <Tooltip content="Undo (Ctrl+Z)" relationship="label">
+              <Button icon={<ArrowUndoRegular />} size="small" appearance="subtle" onClick={undoCardBack} disabled={pastCardBacks.length === 0} />
+            </Tooltip>
+            <Tooltip content="Redo (Ctrl+Y)" relationship="label">
+              <Button icon={<ArrowRedoRegular />} size="small" appearance="subtle" onClick={redoCardBack} disabled={futureCardBacks.length === 0} />
+            </Tooltip>
+          </div>
           <Button icon={<SaveRegular />} appearance="primary" onClick={saveCardBack} disabled={!isDirty}>
             Save Card Back
           </Button>

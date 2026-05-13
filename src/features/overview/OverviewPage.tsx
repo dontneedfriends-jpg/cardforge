@@ -149,11 +149,17 @@ export function OverviewPage() {
   const handleOpenDeck = async (deck: DeckMeta) => {
     if (!projectPath) return;
     const fullPath = `${projectPath}/${deck.path}`;
-    setActiveDeck(deck.id);
-    await loadTemplate(fullPath);
-    await loadData(fullPath, deck);
-    await loadCardBack(fullPath);
-    setSidebarTab('decks');
+    try {
+      setActiveDeck(deck.id);
+      await Promise.all([
+        loadTemplate(fullPath),
+        loadData(fullPath, deck),
+        loadCardBack(fullPath),
+      ]);
+      setSidebarTab('decks');
+    } catch (e) {
+      console.error('[Overview] Failed to open deck:', e);
+    }
   };
 
   if (loading) {
