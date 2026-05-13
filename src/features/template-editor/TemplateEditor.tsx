@@ -1,6 +1,6 @@
 import { ToggleButton, Tab, TabList, Button, makeStyles, Text } from '@fluentui/react-components';
-import { CodeRegular, BorderNoneRegular, SaveRegular } from '@fluentui/react-icons';
-import { useEditorStore, useUiStore } from '../../store';
+import { CodeRegular, BorderNoneRegular, SaveRegular, ContentViewGalleryRegular } from '@fluentui/react-icons';
+import { useEditorStore, useUiStore, useProjectStore } from '../../store';
 import { CodeEditor } from './CodeEditor';
 import { VisualEditor } from './VisualEditor';
 import { CardBackEditor } from './CardBackEditor';
@@ -42,14 +42,46 @@ const useStyles = makeStyles({
     fontSize: '12px',
     color: 'var(--mica-text-tertiary)',
   },
+  boardInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '4px 10px',
+    background: 'var(--mica-layer-2)',
+    borderRadius: '6px',
+    border: '1px solid var(--mica-stroke)',
+    color: 'var(--mica-text-secondary)',
+    fontSize: '12px',
+  },
+  boardIcon: {
+    color: 'var(--mica-accent)',
+    fontSize: '16px',
+  },
+  boardDims: {
+    fontFamily: 'monospace',
+    fontSize: '11px',
+    color: 'var(--mica-text-tertiary)',
+  },
 });
 
 export function TemplateEditor() {
   const styles = useStyles();
+
+  // Board detection
+  const activeBoardId = useEditorStore((s) => s.activeBoardId);
+  const manifest = useProjectStore((s) => s.manifest);
+  const activeBoard = activeBoardId && manifest
+    ? manifest.boards.find((b) => b.id === activeBoardId) ?? null
+    : null;
+  const isBoardMode = !!activeBoard;
+
+  // Editor mode
   const editorMode = useEditorStore((s) => s.editorMode);
   const setEditorMode = useEditorStore((s) => s.setEditorMode);
   const cardBackEditorMode = useEditorStore((s) => s.cardBackEditorMode);
   const setCardBackEditorMode = useEditorStore((s) => s.setCardBackEditorMode);
+
+  // Sync & save
   const isDirty = useEditorStore((s) => s.isDirty);
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const syncCodeToVisual = useEditorStore((s) => s.syncCodeToVisual);
@@ -57,6 +89,7 @@ export function TemplateEditor() {
   const syncCardBackCodeToVisual = useEditorStore((s) => s.syncCardBackCodeToVisual);
   const saveTemplate = useEditorStore((s) => s.saveTemplate);
   const saveCardBack = useEditorStore((s) => s.saveCardBack);
+
   const [tab, setTab] = useState<string>('front');
 
   // Auto-save
@@ -99,17 +132,81 @@ export function TemplateEditor() {
   };
 
   const handleSave = useCallback(async () => {
-    if (tab === 'front') {
+    if (isBoardMode) {
+      await saveTemplate();
+    } else if (tab === 'front') {
       await saveTemplate();
     } else {
       await saveCardBack();
     }
-  }, [tab, saveTemplate, saveCardBack]);
+  }, [tab, saveTemplate, saveCardBack, isBoardMode]);
+
+  const renderBoardEditor = () => {
+    if (editorMode === 'code') return <CodeEditor />;
+    return <VisualEditor />;
+  };
 
   const renderFrontEditor = () => {
     if (editorMode === 'code') return <CodeEditor />;
     return <VisualEditor />;
   };
+
+  // Board-optimized toolbar
+  if (isBoardMode) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className={styles.toolbar}>
+          <div className={styles.boardInfo}>
+            <ContentViewGalleryRegular className={styles.boardIcon} />
+            <span>{activeBoard!.name}</span>
+            <span className={styles.boardDims}>
+              {activeBoard!.widthMm}×{activeBoard!.heightMm}mm
+            </span>
+          </div>
+
+          <div className={styles.modeButtons} style={{ marginLeft: 12 }}>
+            <ToggleButton
+              icon={<CodeRegular />}
+              checked={editorMode === 'code'}
+              onClick={() => handleModeSwitch('code')}
+              size="small"
+              appearance={editorMode === 'code' ? 'primary' : 'subtle'}
+            >
+              Code
+            </ToggleButton>
+            <ToggleButton
+              icon={<BorderNoneRegular />}
+              checked={editorMode === 'visual'}
+              onClick={() => handleModeSwitch('visual')}
+              size="small"
+              appearance={editorMode === 'visual' ? 'primary' : 'subtle'}
+            >
+              Visual
+            </ToggleButton>
+          </div>
+
+          {isDirty && <div className={styles.dirtyDot} title="Unsaved changes" />}
+
+          <div className={styles.syncIndicator}>
+            <Text size={200}>
+              {editorMode === 'code' ? 'Edit board HTML/CSS' : 'Drag & drop elements onto board'}
+            </Text>
+            <Button
+              icon={<SaveRegular />}
+              size="small"
+              appearance="subtle"
+              onClick={handleSave}
+              disabled={!isDirty}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+
+        {renderBoardEditor()}
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

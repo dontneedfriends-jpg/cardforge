@@ -6,6 +6,7 @@ use std::path::Path;
 #[serde(rename_all = "camelCase")]
 pub struct SessionState {
     pub active_deck_id: String,
+    pub active_board_id: String,
     pub editor_mode: String,
     pub active_tab: String,
     pub sidebar_tab: String,
@@ -20,6 +21,7 @@ pub async fn read_session(project_path: String) -> Result<SessionState, String> 
     if !path.exists() {
         return Ok(SessionState {
             active_deck_id: String::new(),
+            active_board_id: String::new(),
             editor_mode: "code".to_string(),
             active_tab: "html".to_string(),
             sidebar_tab: "decks".to_string(),

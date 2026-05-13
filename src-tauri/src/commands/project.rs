@@ -7,7 +7,20 @@ use std::path::Path;
 pub struct CardForgeManifest {
     pub version: String,
     pub name: String,
+    #[serde(default)]
     pub decks: Vec<DeckMeta>,
+    #[serde(default)]
+    pub boards: Vec<BoardMeta>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardMeta {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub width_mm: f64,
+    pub height_mm: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,12 +54,14 @@ pub async fn open_project(path: String) -> Result<CardForgeManifest, String> {
 pub async fn create_project(path: String, name: String) -> Result<CardForgeManifest, String> {
     let project_path = Path::new(&path);
     fs::create_dir_all(project_path.join("decks")).map_err(|e| format!("Failed to create project: {}", e))?;
+    fs::create_dir_all(project_path.join("boards")).map_err(|e| format!("Failed to create project: {}", e))?;
     fs::create_dir_all(project_path.join("assets")).map_err(|e| format!("Failed to create assets: {}", e))?;
 
     let manifest = CardForgeManifest {
         version: "1".to_string(),
         name,
         decks: vec![],
+        boards: vec![],
     };
 
     let manifest_path = project_path.join("cardforge.json");

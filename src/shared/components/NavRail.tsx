@@ -15,6 +15,7 @@ import {
   OpenRegular,
   DocumentAddRegular,
   RenameRegular,
+  ContentViewGalleryRegular,
   type FluentIcon,
 } from '@fluentui/react-icons';
 import { makeStyles, mergeClasses, Text } from '@fluentui/react-components';
@@ -23,7 +24,7 @@ import { useCallback, useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { DEFAULT_CARD_SIZE } from '../cardSizes';
-import type { DeckMeta } from '../../shared/types/project';
+import type { DeckMeta, BoardMeta } from '../../shared/types/project';
 import { TemplateWizardDialog } from '../../features/template-wizard/TemplateWizardDialog';
 import { SettingsDialog } from '../../features/settings/SettingsDialog';
 
@@ -585,14 +586,19 @@ export function NavRail() {
   const openProject = useProjectStore((s) => s.openProject);
   const createProject = useProjectStore((s) => s.createProject);
   const saveManifest = useProjectStore((s) => s.saveManifest);
+  const addBoard = useProjectStore((s) => s.addBoard);
+  const removeBoard = useProjectStore((s) => s.removeBoard);
+  const renameBoard = useProjectStore((s) => s.renameBoard);
+  const activeBoardId = useEditorStore((s) => s.activeBoardId);
+  const setActiveBoard = useEditorStore((s) => s.setActiveBoard);
 
   const [isWizardDialogOpen, setIsWizardDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ deckId: string; x: number; y: number } | null>(null);
-  const [renamingDeckId, setRenamingDeckId] = useState<string | null>(null);
-  const renamingDeckRef = useRef(renamingDeckId);
-  renamingDeckRef.current = renamingDeckId;
+  const [contextMenu, setContextMenu] = useState<{ type: 'deck' | 'board'; id: string; x: number; y: number } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const renamingIdRef = useRef(renamingId);
+  renamingIdRef.current = renamingId;
   const [renameValue, setRenameValue] = useState('');
   const renameValueRef = useRef(renameValue);
   renameValueRef.current = renameValue;
@@ -614,7 +620,7 @@ export function NavRail() {
       if (e.key === 'Escape') {
         setFileMenuOpen(false);
         setContextMenu(null);
-        setRenamingDeckId(null);
+        setRenamingId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -633,13 +639,24 @@ export function NavRail() {
   const handleSelectDeck = useCallback(async (deck: DeckMeta) => {
     if (!projectPath) return;
     setActiveDeck(deck.id);
+    setActiveBoard(null);
     const fullPath = `${projectPath}/${deck.path}`;
     await loadTemplate(fullPath);
     await loadData(fullPath, deck);
     await loadCardBack(fullPath);
     setSidebarTab('decks');
     navigate({ to: '/editor' });
-  }, [projectPath, setActiveDeck, loadTemplate, loadData, loadCardBack, setSidebarTab, navigate]);
+  }, [projectPath, setActiveDeck, setActiveBoard, loadTemplate, loadData, loadCardBack, setSidebarTab, navigate]);
+
+  const handleSelectBoard = useCallback(async (board: BoardMeta) => {
+    if (!projectPath) return;
+    setActiveBoard(board.id);
+    setActiveDeck('');
+    const fullPath = `${projectPath}/${board.path}`;
+    await loadTemplate(fullPath);
+    setSidebarTab('decks');
+    navigate({ to: '/editor' });
+  }, [projectPath, setActiveBoard, setActiveDeck, loadTemplate, setSidebarTab, navigate]);
 
   const handleSaveAll = useCallback(async () => {
     if (!projectPath) return;
@@ -676,33 +693,60 @@ export function NavRail() {
     }
   }, [projectPath, manifest, addDeck, handleSelectDeck]);
 
-  const handleDeleteDeck = useCallback(async (deckId: string) => {
-    setContextMenu(null);
-    await removeDeck(deckId);
-    if (activeDeckId === deckId) {
-      setActiveDeck('');
+  const handleQuickCreateBoard = useCallback(async () => {
+    if (!projectPath) return;
+    const name = `Board ${(manifest?.boards.length || 0) + 1}`;
+    await addBoard(name, 420, 297);
+    
+    const updatedManifest = useProjectStore.getState().manifest;
+    const newBoard = updatedManifest?.boards.find((b: BoardMeta) => b.name === name);
+    
+    if (newBoard) {
+      await handleSelectBoard(newBoard);
     }
-  }, [removeDeck, activeDeckId, setActiveDeck]);
+  }, [projectPath, manifest, addBoard, handleSelectBoard]);
 
-  const handleStartRename = useCallback((deckId: string) => {
+  const handleDeleteItem = useCallback(async () => {
+    const menu = contextMenu;
     setContextMenu(null);
-    const deck = manifest?.decks.find(d => d.id === deckId);
-    if (deck) {
-      setRenamingDeckId(deckId);
-      setRenameValue(deck.name);
+    if (!menu) return;
+    if (menu.type === 'deck') {
+      await removeDeck(menu.id);
+      if (activeDeckId === menu.id) setActiveDeck('');
+    } else {
+      await removeBoard(menu.id);
+      if (activeBoardId === menu.id) setActiveBoard(null);
+    }
+  }, [contextMenu, removeDeck, removeBoard, activeDeckId, activeBoardId, setActiveDeck, setActiveBoard]);
+
+  const handleStartRename = useCallback(() => {
+    const menu = contextMenu;
+    setContextMenu(null);
+    if (!menu) return;
+    const item = menu.type === 'deck'
+      ? manifest?.decks.find(d => d.id === menu.id)
+      : manifest?.boards.find(b => b.id === menu.id);
+    if (item) {
+      setRenamingId(menu.id);
+      setRenameValue(item.name);
       setTimeout(() => renameInputRef.current?.focus(), 50);
     }
-  }, [manifest]);
+  }, [contextMenu, manifest]);
 
   const handleFinishRename = useCallback(async () => {
-    const id = renamingDeckRef.current;
+    const id = renamingIdRef.current;
     const val = renameValueRef.current ? renameValueRef.current.trim() : '';
     if (id && val) {
-      await renameDeck(id, val);
+      const isBoard = manifest?.boards.some(b => b.id === id);
+      if (isBoard) {
+        await renameBoard(id, val);
+      } else {
+        await renameDeck(id, val);
+      }
     }
-    setRenamingDeckId(null);
+    setRenamingId(null);
     setRenameValue('');
-  }, [renameDeck]);
+  }, [renameDeck, renameBoard, manifest]);
 
   const handleFileNewProject = useCallback(async () => {
     setFileMenuOpen(false);
@@ -848,7 +892,7 @@ export function NavRail() {
           <>
             {manifest?.decks.map((deck) => (
               <div key={deck.id} style={{ position: 'relative' }}>
-                {renamingDeckId === deck.id ? (
+                {renamingId === deck.id ? (
                   <input
                     ref={renameInputRef}
                     className={styles.renameInput}
@@ -858,7 +902,7 @@ export function NavRail() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleFinishRename();
                       if (e.key === 'Escape') {
-                        setRenamingDeckId(null);
+                        setRenamingId(null);
                         setRenameValue('');
                       }
                     }}
@@ -869,7 +913,7 @@ export function NavRail() {
                     onClick={() => handleSelectDeck(deck)}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      setContextMenu({ deckId: deck.id, x: e.clientX, y: e.clientY });
+                      setContextMenu({ type: 'deck', id: deck.id, x: e.clientX, y: e.clientY });
                     }}
                     className={mergeClasses(
                       styles.deckItem,
@@ -888,19 +932,78 @@ export function NavRail() {
         )}
       </div>
 
+      <div className={styles.sectionTitle}>Boards</div>
+
+      {projectPath && (
+        <div className={styles.deckActions}>
+          <button
+            onClick={handleQuickCreateBoard}
+            className={styles.quickAddBtn}
+            title="Quick add empty board"
+          >
+            <AddRegular fontSize={14} />
+            <span>Add</span>
+          </button>
+        </div>
+      )}
+
+      <div className={styles.deckList}>
+        {manifest?.boards.map((board) => (
+          <div key={board.id} style={{ position: 'relative' }}>
+            {renamingId === board.id ? (
+              <input
+                ref={renameInputRef}
+                className={styles.renameInput}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={handleFinishRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleFinishRename();
+                  if (e.key === 'Escape') {
+                    setRenamingId(null);
+                    setRenameValue('');
+                  }
+                }}
+                style={{ margin: '4px 0' }}
+              />
+            ) : (
+              <button
+                onClick={() => handleSelectBoard(board)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ type: 'board', id: board.id, x: e.clientX, y: e.clientY });
+                }}
+                className={mergeClasses(
+                  styles.deckItem,
+                  activeBoardId === board.id && styles.deckActive
+                )}
+              >
+                <ContentViewGalleryRegular fontSize={14} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {board.name}
+                </span>
+                <span style={{ fontSize: 10, opacity: 0.4, fontFamily: 'monospace' }}>
+                  {board.widthMm}×{board.heightMm}
+                </span>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
       {contextMenu && (
         <div
           className={styles.contextMenu}
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onContextMenu={(e) => { e.preventDefault(); }}
         >
-          <button className={styles.contextMenuItem} onClick={() => handleStartRename(contextMenu.deckId)}>
+          <button className={styles.contextMenuItem} onClick={handleStartRename}>
             <RenameRegular fontSize={14} />
             <span>Rename</span>
           </button>
           <button
             className={mergeClasses(styles.contextMenuItem, styles.contextMenuDanger)}
-            onClick={() => handleDeleteDeck(contextMenu.deckId)}
+            onClick={handleDeleteItem}
           >
             <DeleteRegular fontSize={14} />
             <span>Delete</span>

@@ -19,7 +19,7 @@ import { ElementPanel } from './wysiwyg/ElementPanel';
 import { PropertiesPanel } from './wysiwyg/PropertiesPanel';
 import { LayersPanel } from './wysiwyg/LayersPanel';
 import { DEFAULT_CARD_SIZE } from '../../shared/cardSizes';
-import { useDeckStore, useCanvasStore, useEditorStore } from '../../store';
+import { useDeckStore, useCanvasStore, useEditorStore, useProjectStore } from '../../store';
 
 const useStyles = makeStyles({
   container: {
@@ -73,9 +73,21 @@ const useStyles = makeStyles({
 
 export function VisualEditor() {
   const styles = useStyles();
+
+  // Board-aware sizing
+  const activeBoardId = useEditorStore((s) => s.activeBoardId);
+  const manifest = useProjectStore((s) => s.manifest);
+  const activeBoard = activeBoardId && manifest
+    ? manifest.boards.find((b) => b.id === activeBoardId) ?? null
+    : null;
+  const isBoardMode = !!activeBoard;
+
   const deckData = useDeckStore((s) => s.deckData);
   const cardSize = deckData?.meta.cardSize || DEFAULT_CARD_SIZE;
-  
+
+  const canvasWidth = isBoardMode ? activeBoard!.widthMm : cardSize.widthMm;
+  const canvasHeight = isBoardMode ? activeBoard!.heightMm : cardSize.heightMm;
+
   const selectedIds = useCanvasStore((s) => s.selectedIds);
   const undo = useCanvasStore((s) => s.undo);
   const redo = useCanvasStore((s) => s.redo);
@@ -99,8 +111,10 @@ export function VisualEditor() {
       </div>
       <div className={styles.center}>
         <div className={styles.toolbar}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Canvas</span>
-          {deckData && deckData.rows.length > 1 && (
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>
+            {isBoardMode ? 'Board' : 'Canvas'}
+          </span>
+          {!isBoardMode && deckData && deckData.rows.length > 1 && (
             <>
               <div style={{ width: '1px', height: '16px', background: 'var(--mica-stroke)', margin: '0 6px' }} />
               <select
@@ -171,9 +185,9 @@ export function VisualEditor() {
             </Tooltip>
           </div>
         </div>
-        <Canvas 
-          widthMm={cardSize.widthMm} 
-          heightMm={cardSize.heightMm} 
+        <Canvas
+          widthMm={canvasWidth}
+          heightMm={canvasHeight}
         />
       </div>
       <div className={styles.rightPanel}>

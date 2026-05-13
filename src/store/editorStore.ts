@@ -16,6 +16,7 @@ interface EditorStoreState {
   editorMode: EditorMode;
   currentDeckPath: string | null;
   currentCardSize: CardSize | null;
+  activeBoardId: string | null;
   cardBack: CardBackDesign;
   pastCardBacks: CardBackDesign[];
   futureCardBacks: CardBackDesign[];
@@ -50,6 +51,7 @@ interface EditorStoreActions {
   loadCardBack: (deckPath: string) => Promise<void>;
   syncCardBackVisualToCode: () => void;
   syncCardBackCodeToVisual: () => boolean;
+  setActiveBoard: (id: string | null) => void;
 }
 
 type EditorStore = EditorStoreState & EditorStoreActions;
@@ -227,6 +229,7 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
   editorMode: 'code',
   currentDeckPath: null,
   currentCardSize: null,
+  activeBoardId: null,
   cardBack: { ...defaultCardBack },
   pastCardBacks: [],
   futureCardBacks: [],
@@ -432,4 +435,6 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
       cardBackEditorMode: 'visual',
     });
   },
+
+  setActiveBoard: (id: string | null) => set({ activeBoardId: id }),
 }));

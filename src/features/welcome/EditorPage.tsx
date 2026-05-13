@@ -4,7 +4,7 @@ import { DataEditor } from '../data-editor/DataEditor';
 import { PreviewPanel } from '../preview/PreviewPanel';
 import { AssetManager } from '../assets/AssetManager';
 import { OverviewPage } from '../overview/OverviewPage';
-import { useUiStore, useProjectStore, useDeckStore } from '../../store';
+import { useUiStore, useProjectStore, useDeckStore, useEditorStore } from '../../store';
 import { useSaveHotkey } from '../../shared/hooks/useSaveHotkey';
 import { useFileWatcher } from '../../shared/hooks/useFileWatcher';
 import { useEffect } from 'react';
@@ -14,6 +14,7 @@ export function EditorPage() {
   const sidebarTab = useUiStore((s) => s.sidebarTab);
   const projectPath = useProjectStore((s) => s.projectPath);
   const activeDeckId = useDeckStore((s) => s.activeDeckId);
+  const activeBoardId = useEditorStore((s) => s.activeBoardId);
   useSaveHotkey();
   useFileWatcher();
 
@@ -29,7 +30,7 @@ export function EditorPage() {
       case 'data': return <DataEditor />;
       case 'assets': return <AssetManager />;
       case 'overview': return <OverviewPage />;
-      default: return activeDeckId ? <TemplateEditor /> : (
+      default: return (activeDeckId || activeBoardId) ? <TemplateEditor /> : (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--mica-text-tertiary)', flexDirection: 'column', gap: '12px' }}>
           <span style={{ fontSize: '48px' }}>🃏</span>
           <span style={{ fontSize: '18px', fontWeight: 600 }}>No deck selected</span>

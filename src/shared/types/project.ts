@@ -58,6 +58,15 @@ export interface CardForgeManifest {
   version: string;
   name: string;
   decks: DeckMeta[];
+  boards: BoardMeta[];
+}
+
+export interface BoardMeta {
+  id: string;
+  name: string;
+  path: string;
+  widthMm: number;
+  heightMm: number;
 }
 
 export interface DeckMeta {

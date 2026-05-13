@@ -1,4 +1,4 @@
-import type { CardForgeManifest, CardSize } from '../shared/types/project';
+import type { CardForgeManifest, CardSize, BoardMeta } from '../shared/types/project';
 import { invoke } from '@tauri-apps/api/core';
 
 interface ProjectStoreState {
@@ -15,6 +15,9 @@ interface ProjectStoreActions {
   addDeck: (name: string, cardSize: CardSize) => Promise<void>;
   removeDeck: (deckId: string) => Promise<void>;
   renameDeck: (deckId: string, newName: string) => Promise<void>;
+  addBoard: (name: string, widthMm: number, heightMm: number) => Promise<void>;
+  removeBoard: (boardId: string) => Promise<void>;
+  renameBoard: (boardId: string, newName: string) => Promise<void>;
 }
 
 type ProjectStore = ProjectStoreState & ProjectStoreActions;
@@ -99,6 +102,59 @@ export const useProjectStore = create<ProjectStore>()(
         if (!state.manifest) return;
         const deck = state.manifest.decks.find((d) => d.id === deckId);
         if (deck) deck.name = newName;
+        state.isDirty = true;
+      });
+      const st = get();
+      if (pp && st.manifest) {
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
+    },
+
+    addBoard: async (name: string, widthMm: number, heightMm: number) => {
+      const pp = get().projectPath;
+      set((state) => {
+        if (!state.manifest) return;
+        const id = `board_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+        const path = `boards/${name.toLowerCase().replace(/\s+/g, '_')}`;
+        state.manifest.boards.push({ id, name, path, widthMm, heightMm });
+        state.isDirty = true;
+      });
+      const st = get();
+      if (pp && st.manifest) {
+        const newBoard = st.manifest.boards.find((b: BoardMeta) => b.name === name);
+        if (newBoard) {
+          await invoke('write_template', {
+            deckPath: `${pp}/${newBoard.path}`,
+            html: '<div class="board-root" style="position:relative;width:100%;height:100%;background:#f0f0f0;"></div>',
+            css: '.board-root { width: 100%; height: 100%; overflow: hidden; }',
+          });
+        }
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
+    },
+
+    removeBoard: async (boardId: string) => {
+      const pp = get().projectPath;
+      set((state) => {
+        if (!state.manifest) return;
+        state.manifest.boards = state.manifest.boards.filter((b) => b.id !== boardId);
+        state.isDirty = true;
+      });
+      const st = get();
+      if (pp && st.manifest) {
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
+    },
+
+    renameBoard: async (boardId: string, newName: string) => {
+      const pp = get().projectPath;
+      set((state) => {
+        if (!state.manifest) return;
+        const board = state.manifest.boards.find((b) => b.id === boardId);
+        if (board) board.name = newName;
         state.isDirty = true;
       });
       const st = get();

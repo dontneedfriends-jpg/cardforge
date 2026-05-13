@@ -8,6 +8,7 @@ import { CrashRecoveryDialog } from './shared/components/CrashRecoveryDialog';
 
 interface SessionState {
   activeDeckId: string;
+  activeBoardId: string;
   editorMode: string;
   activeTab: string;
   sidebarTab: string;
@@ -26,6 +27,7 @@ function collectSession(cleanShutdown: boolean): SessionState {
   const ui = useUiStore.getState();
   return {
     activeDeckId: deck.activeDeckId || '',
+    activeBoardId: editor.activeBoardId || '',
     editorMode: editor.editorMode || 'code',
     activeTab: editor.activeTab || 'html',
     sidebarTab: ui.sidebarTab || 'decks',
@@ -72,14 +74,15 @@ export default function App() {
 
       try {
         const session = await invoke<SessionState>('read_session', { projectPath });
-        if (session.cleanShutdown || !session.activeDeckId) return;
+        if (session.cleanShutdown || (!session.activeDeckId && !session.activeBoardId)) return;
 
         const manifest = useProjectStore.getState().manifest;
         const deck = manifest?.decks.find(d => d.id === session.activeDeckId);
+        const board = manifest?.boards.find(b => b.id === session.activeBoardId);
         setRecoveryData({
           projectPath,
           lastActive: session.lastActiveTimestamp,
-          deckName: deck?.name || '',
+          deckName: deck?.name || board?.name || '',
         });
       } catch {}
     };
@@ -135,15 +138,27 @@ export default function App() {
     try {
       const session = await invoke<SessionState>('read_session', { projectPath: recoveryData.projectPath });
       const manifest = useProjectStore.getState().manifest;
-      const deck = manifest?.decks.find(d => d.id === session.activeDeckId);
-      if (deck && projectPath) {
-        useDeckStore.getState().setActiveDeck(session.activeDeckId);
-        const fullPath = `${projectPath}/${deck.path}`;
-        await useEditorStore.getState().loadTemplate(fullPath);
-        await useDeckStore.getState().loadData(fullPath, deck);
-        await useEditorStore.getState().loadCardBack(fullPath);
-        useUiStore.getState().setSidebarTab(session.sidebarTab || 'decks');
+      if (!projectPath) return;
+
+      if (session.activeDeckId) {
+        const deck = manifest?.decks.find(d => d.id === session.activeDeckId);
+        if (deck) {
+          useDeckStore.getState().setActiveDeck(session.activeDeckId);
+          const fullPath = `${projectPath}/${deck.path}`;
+          await useEditorStore.getState().loadTemplate(fullPath);
+          await useDeckStore.getState().loadData(fullPath, deck);
+          await useEditorStore.getState().loadCardBack(fullPath);
+        }
+      } else if (session.activeBoardId) {
+        const board = manifest?.boards.find(b => b.id === session.activeBoardId);
+        if (board) {
+          useEditorStore.getState().setActiveBoard(session.activeBoardId);
+          const fullPath = `${projectPath}/${board.path}`;
+          await useEditorStore.getState().loadTemplate(fullPath);
+        }
       }
+
+      useUiStore.getState().setSidebarTab(session.sidebarTab || 'decks');
     } catch {}
     setRecoveryData(null);
   };
