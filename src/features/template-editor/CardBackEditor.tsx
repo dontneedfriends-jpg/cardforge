@@ -42,6 +42,9 @@ const useStyles = makeStyles({
     cursor: 'pointer',
     background: 'none',
   },
+  inputGrow: {
+    flex: 1,
+  },
   previewPanel: {
     width: '360px',
     minWidth: '360px',
@@ -114,22 +117,7 @@ const symbolPresets = [
   { label: 'Infinity', value: 'infinity', char: '∞' },
 ];
 
-function getPatternCss(pattern: string, color: string, opacity: number): string {
-  const c = color.replace(/[\d.]+\)$/, `${opacity})`);
-  switch (pattern) {
-    case 'stripes':
-      return `repeating-linear-gradient(45deg, transparent, transparent 10px, ${c} 10px, ${c} 11px)`;
-    case 'dots':
-      return `radial-gradient(${c} 1px, transparent 1px) 0 0 / 20px 20px`;
-    case 'crosshatch':
-      return [
-        `repeating-linear-gradient(45deg, transparent, transparent 8px, ${c} 8px, ${c} 9px)`,
-        `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${c} 8px, ${c} 9px)`,
-      ].join(', ');
-    default:
-      return 'none';
-  }
-}
+import { getPatternCss } from '../../shared/utils/patternCss';
 
 export function CardBackEditor() {
   const styles = useStyles();
@@ -160,7 +148,7 @@ export function CardBackEditor() {
           size="small"
           value={cardBack[key] as string}
           onChange={(_, d) => update({ [key]: d.value })}
-          style={{ flex: 1 }}
+          className={styles.inputGrow}
         />
       </div>
     </div>

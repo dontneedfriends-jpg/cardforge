@@ -11,7 +11,11 @@ export function renderCardBody(
     const body = template(row);
     return { body, css };
   } catch {
-    return { body: '<div style="color:red;padding:16px">Template error</div>', css: '' };
+    const body = html.replace(/\{\{(\w+)\}\}/g, (_match: string, key: string) => {
+      const val = row[key];
+      return val !== undefined && val !== null ? String(val) : '';
+    });
+    return { body, css };
   }
 }
 

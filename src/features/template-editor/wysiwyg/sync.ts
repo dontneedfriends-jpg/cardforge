@@ -2,7 +2,9 @@ import type { CanvasElement } from '../../../store/canvasStore';
 import type { CardSize } from '../../../shared/types/project';
 import { assetPathToRelative } from '../../../shared/utils/assetPath';
 import { iconSvgMap } from '../../../shared/utils/iconPaths';
-import { injectPosition, createManifest, injectManifest, extractManifest, normalizeColor } from './sync.utils';
+import { injectPosition, createManifest, injectManifest, extractManifest } from './sync.utils';
+import { parseElementTree } from '../../../shared/utils/parseElementTree';
+import type { GetElementLayout } from '../../../shared/utils/parseElementTree';
 import { mmToPx } from '../../../theme';
 
 /**
@@ -309,7 +311,8 @@ function withIframe<T>(
   iframe.style.cssText = 'position:fixed;width:0;height:0;visibility:hidden;border:none';
   document.body.appendChild(iframe);
   try {
-    const doc = iframe.contentDocument!;
+    const doc = iframe.contentDocument;
+    if (!doc) return null;
     doc.open();
     doc.write(`<!DOCTYPE html><html><head><style>
 * { box-sizing: border-box; }
@@ -317,9 +320,9 @@ body { margin:0;width:${cardWidthPx}px;height:${cardHeightPx}px;overflow:hidden;
 ${css}
 </style></head><body>${html}</body></html>`);
     doc.close();
-    doc.body.getBoundingClientRect(); // принудительный layout
+    doc.body?.getBoundingClientRect(); // принудительный layout
 
-    const root = doc.querySelector('.card-root') ?? (doc.body.children[0] as Element | null);
+    const root = doc.querySelector('.card-root') ?? (doc.body?.children[0] as Element | null);
     if (!root) return null;
     return fn(doc, root);
   } catch (e) {
@@ -384,202 +387,24 @@ export function parseTemplateToElements(
     // Пытаемся измерить через iframe (поддерживает любые раскладки: absolute, flex, %-размеры)
     const iframeResult = withIframe(html, css, cardW, cardH, (doc, root) => {
       const elements: CanvasElement[] = [];
-      let zIndex = 0;
+      const zIndexRef = { current: 0 };
       const rootRect = root.getBoundingClientRect();
 
-      const elClassRegex = /(?:^|\s)el-(?:text|field|image|shape|circle|line|icon|container)-/;
-
-      function hasElClass(className: string): boolean {
-        return elClassRegex.test(className);
-      }
-
-      function parseElementTree(
-        el: Element,
-        parentElId?: string
-      ): void {
-        if (el.tagName === 'SCRIPT' && el.getAttribute('type') === 'application/cf-manifest') return;
-
-        const htmlEl = el as HTMLElement;
-        const className = htmlEl.className || '';
-
-        // Определяем тип по классу
-        let type: CanvasElement['type'] = 'container';
-        if (className.includes('el-text-')) type = 'text';
-        else if (className.includes('el-field-')) type = 'field';
-        else if (className.includes('el-image-')) type = 'image';
-        else if (className.includes('el-shape-')) type = 'shape';
-        else if (className.includes('el-circle-')) type = 'circle';
-        else if (className.includes('el-line-')) type = 'line';
-        else if (className.includes('el-icon-')) type = 'icon';
-        else if (className.includes('el-container-')) type = 'container';
-        else if (className.includes('el-qr-')) type = 'qr';
-
-        // Позиция через getBoundingClientRect — работает для любых раскладок
-        const parentRect = parentElId ? el.parentElement?.getBoundingClientRect() ?? rootRect : rootRect;
+      const getLayout: GetElementLayout = (htmlEl, parentRect, rootR) => {
+        const pRect = parentRect ?? rootR;
         const rect = htmlEl.getBoundingClientRect();
-        const x = rect.left - parentRect.left;
-        const y = rect.top - parentRect.top;
+        const cs = doc.defaultView?.getComputedStyle(htmlEl);
+        return {
+          x: rect.left - pRect.left,
+          y: rect.top - pRect.top,
+          width: cs ? parseFloat(cs.width) || rect.width : rect.width,
+          height: cs ? parseFloat(cs.height) || rect.height : rect.height,
+        };
+      };
 
-        // Размеры через computedStyle (не подвержен влиянию rotation)
-        const cs = doc.defaultView!.getComputedStyle(htmlEl);
-        const width = parseFloat(cs.width) || rect.width;
-        const height = parseFloat(cs.height) || rect.height;
-
-        // Rotation/opacity/z-index из inline style (getBoundingClientRect их не даёт)
-        const transform = htmlEl.style.transform;
-        let rotation = 0;
-        if (transform) {
-          const match = transform.match(/rotate\(([-\d.]+)deg\)/);
-          if (match) rotation = parseFloat(match[1]);
-        }
-
-        const opacity = parseFloat(htmlEl.style.opacity) || 1;
-        const zIndexVal = parseInt(htmlEl.style.zIndex) || zIndex++;
-
-        // Пропсы (те же, что и раньше)
-        const props: Record<string, any> = {};
-
-        switch (type) {
-          case 'text':
-          case 'field':
-            props.text = htmlEl.textContent || '';
-            props.fontSize = parseInt(htmlEl.style.fontSize) || 14;
-            props.fontWeight = htmlEl.style.fontWeight || 'normal';
-            props.color = cssValue(htmlEl.style.color, '#ffffff');
-            props.fontFamily = htmlEl.style.fontFamily || '';
-            props.textAlign = htmlEl.style.textAlign || 'left';
-            props.textStroke = parseInt(htmlEl.style.webkitTextStroke) || 0;
-            if (htmlEl.style.webkitTextStroke) {
-              const parts = htmlEl.style.webkitTextStroke.split(' ');
-              if (parts.length >= 2) props.textStrokeColor = parts[parts.length - 1];
-            }
-            props.textShadow = htmlEl.style.textShadow || '';
-            if (type === 'field') {
-              const match = props.text.match(/\{\{(.+?)\}\}/);
-              props.fieldName = match ? match[1] : 'field';
-            }
-            break;
-
-          case 'image': {
-            const img = htmlEl.querySelector('img');
-            if (img) {
-              const src = img.getAttribute('src') || '';
-              if (src.startsWith('{{') && src.endsWith('}}')) {
-                props.isField = true;
-                props.fieldName = src.slice(2, -2);
-              } else {
-                props.src = src;
-                props.isField = false;
-              }
-            }
-            break;
-          }
-
-          case 'shape':
-          case 'circle':
-          case 'container':
-            props.background = cssValue(htmlEl.style.background || htmlEl.style.backgroundColor, '#444');
-            props.fill = cssValue(htmlEl.style.background || htmlEl.style.backgroundColor, '');
-            props.borderRadius = parseInt(htmlEl.style.borderRadius) || 0;
-            props.borderWidth = parseInt(htmlEl.style.borderWidth) || 0;
-            props.borderColor = cssValue(htmlEl.style.borderColor, '#000');
-            if (type === 'container') {
-              props.padding = parseInt(htmlEl.style.padding) || 8;
-              const display = htmlEl.style.display;
-              if (display === 'grid') {
-                props.layout = 'grid';
-                const cols = htmlEl.style.gridTemplateColumns;
-                if (cols) {
-                  const m = cols.match(/repeat\(\s*(\d+)/);
-                  if (m) props.columns = parseInt(m[1]);
-                }
-                const rows = htmlEl.style.gridTemplateRows;
-                if (rows) {
-                  const m = rows.match(/repeat\(\s*(\d+)/);
-                  if (m) props.rows = parseInt(m[1]);
-                }
-                props.gap = parseInt(htmlEl.style.gap) || 4;
-              } else if (display === 'flex') {
-                props.layout = 'stack';
-                props.direction = htmlEl.style.flexDirection || 'column';
-                props.gap = parseInt(htmlEl.style.gap) || 4;
-                props.alignItems = htmlEl.style.alignItems || 'stretch';
-                props.justifyContent = htmlEl.style.justifyContent || 'start';
-              } else {
-                props.layout = 'free';
-              }
-            }
-            break;
-
-          case 'line': {
-            const line = htmlEl.querySelector('div');
-            if (line) {
-              props.color = cssValue(line.style.backgroundColor, '#fff');
-              props.lineWidth = parseInt(line.style.height) || 2;
-            }
-            break;
-          }
-
-          case 'icon': {
-            const dataIcon = htmlEl.getAttribute('data-icon-name');
-            const iconPart = className.replace(/^.*\bel-icon-/, '').split(/\s/)[0];
-            props.iconName = dataIcon || iconPart || 'star';
-            props.iconSize = parseInt(htmlEl.style.fontSize) || 24;
-            props.color = cssValue(htmlEl.style.color, '#fff');
-            break;
-          }
-          case 'qr': {
-            const span = htmlEl.querySelector('[data-qr-data]') as HTMLElement | null;
-            props.data = span?.getAttribute('data-qr-data') || '';
-            props.qrSize = parseInt(span?.getAttribute('data-qr-size') || '100') || 100;
-            props.color = span?.getAttribute('data-qr-color') || '#000000';
-            props.bgColor = span?.getAttribute('data-qr-bg') || '#ffffff';
-            props.errorCorrection = (span?.getAttribute('data-qr-ecc') || 'M') as 'L' | 'M' | 'Q' | 'H';
-            break;
-          }
-        }
-
-        // Находим извлекаемых детей (только для контейнеров с el-* классами)
-        const extractableChildren: Element[] = [];
-        if (type === 'container' && el.children.length > 0) {
-          Array.from(el.children).forEach((child) => {
-            if (hasElClass((child as HTMLElement).className || '')) {
-              extractableChildren.push(child);
-            }
-          });
-        }
-
-        // sourceHtml: для контейнеров с детьми — обрезаем детей
-        let sourceHtml: string;
-        if (type === 'container' && extractableChildren.length > 0) {
-          const clone = htmlEl.cloneNode(true) as HTMLElement;
-          while (clone.firstChild) clone.removeChild(clone.firstChild);
-          sourceHtml = clone.outerHTML;
-        } else {
-          sourceHtml = htmlEl.outerHTML;
-        }
-
-        const cfId = `parsed_${Date.now()}_${zIndex}`;
-        elements.push({
-          id: cfId,
-          type, x, y, width, height, rotation, opacity,
-          zIndex: zIndexVal, visible: true,
-          parentId: parentElId,
-          props,
-          meta: {
-            sourceHtml, cfId,
-            tagName: el.tagName.toLowerCase(),
-            classList: Array.from(htmlEl.classList),
-            inlineStyle: htmlEl.getAttribute('style') || '',
-          },
-        });
-
-        for (const child of extractableChildren) {
-          parseElementTree(child, cfId);
-        }
-      }
-
-      Array.from(root.children).forEach((child) => parseElementTree(child));
+      Array.from(root.children).forEach((child) => {
+        parseElementTree(child, undefined, elements, zIndexRef, rootRect, getLayout);
+      });
       return elements;
     });
 
@@ -595,133 +420,20 @@ export function parseTemplateToElements(
     if (!root) return null;
 
     const elements: CanvasElement[] = [];
-    let zIndex = 0;
-    const elClassRegex = /(?:^|\s)el-(?:text|field|image|shape|circle|line|icon|container)-/;
+    const zIndexRef = { current: 0 };
+    const rootRect = new DOMRect(0, 0, cardW, cardH);
 
-    function hasElClass(className: string): boolean { return elClassRegex.test(className); }
+    const getLayout: GetElementLayout = (htmlEl) => ({
+      x: parseFloat(htmlEl.style.left) || 0,
+      y: parseFloat(htmlEl.style.top) || 0,
+      width: parseFloat(htmlEl.style.width) || 100,
+      height: parseFloat(htmlEl.style.height) || 100,
+    });
 
-    function parseElementTree(el: HTMLElement, parentElId?: string): void {
-      if (el.tagName === 'SCRIPT' && el.getAttribute('type') === 'application/cf-manifest') return;
-      const className = el.className || '';
-      let type: CanvasElement['type'] = 'container';
-      if (className.includes('el-text-')) type = 'text';
-      else if (className.includes('el-field-')) type = 'field';
-      else if (className.includes('el-image-')) type = 'image';
-      else if (className.includes('el-shape-')) type = 'shape';
-      else if (className.includes('el-circle-')) type = 'circle';
-      else if (className.includes('el-line-')) type = 'line';
-      else if (className.includes('el-icon-')) type = 'icon';
-      else if (className.includes('el-container-')) type = 'container';
-      else if (className.includes('el-qr-')) type = 'qr';
+    Array.from(root.children).forEach((child) => {
+      parseElementTree(child, undefined, elements, zIndexRef, rootRect, getLayout);
+    });
 
-      const style = el.style;
-      const x = parseFloat(style.left) || 0;
-      const y = parseFloat(style.top) || 0;
-      const width = parseFloat(style.width) || 100;
-      const height = parseFloat(style.height) || 100;
-      const transform = style.transform;
-      let rotation = 0;
-      if (transform) { const m = transform.match(/rotate\(([-\d.]+)deg\)/); if (m) rotation = parseFloat(m[1]); }
-      const opacity = parseFloat(style.opacity) || 1;
-      const zIndexVal = parseInt(style.zIndex) || zIndex++;
-
-      const props: Record<string, any> = {};
-      switch (type) {
-        case 'text': case 'field':
-          props.text = el.textContent || '';
-          props.fontSize = parseInt(el.style.fontSize) || 14;
-          props.fontWeight = el.style.fontWeight || 'normal';
-          props.color = cssValue(el.style.color, '#ffffff');
-          props.fontFamily = el.style.fontFamily || '';
-          props.textAlign = el.style.textAlign || 'left';
-          props.textStroke = parseInt(el.style.webkitTextStroke) || 0;
-          if (el.style.webkitTextStroke) { const parts = el.style.webkitTextStroke.split(' '); if (parts.length >= 2) props.textStrokeColor = parts[parts.length - 1]; }
-          props.textShadow = el.style.textShadow || '';
-          if (type === 'field') { const m = props.text.match(/\{\{(.+?)\}\}/); props.fieldName = m ? m[1] : 'field'; }
-          break;
-        case 'image': {
-          const img = el.querySelector('img');
-          if (img) {
-            const src = img.getAttribute('src') || '';
-            if (src.startsWith('{{') && src.endsWith('}}')) { props.isField = true; props.fieldName = src.slice(2, -2); }
-            else { props.src = src; props.isField = false; }
-          }
-          break;
-        }
-        case 'shape': case 'circle': case 'container':
-          props.background = cssValue(el.style.background || el.style.backgroundColor, '#444');
-          props.fill = cssValue(el.style.background || el.style.backgroundColor, '');
-          props.borderRadius = parseInt(el.style.borderRadius) || 0;
-          props.borderWidth = parseInt(el.style.borderWidth) || 0;
-          props.borderColor = cssValue(el.style.borderColor, '#000');
-          if (type === 'container') {
-            props.padding = parseInt(el.style.padding) || 8;
-            const display = el.style.display;
-            if (display === 'grid') {
-              props.layout = 'grid';
-              const cols = el.style.gridTemplateColumns;
-              if (cols) { const m = cols.match(/repeat\(\s*(\d+)/); if (m) props.columns = parseInt(m[1]); }
-              const rows = el.style.gridTemplateRows;
-              if (rows) { const m = rows.match(/repeat\(\s*(\d+)/); if (m) props.rows = parseInt(m[1]); }
-              props.gap = parseInt(el.style.gap) || 4;
-            } else if (display === 'flex') {
-              props.layout = 'stack';
-              props.direction = el.style.flexDirection || 'column';
-              props.gap = parseInt(el.style.gap) || 4;
-              props.alignItems = el.style.alignItems || 'stretch';
-              props.justifyContent = el.style.justifyContent || 'start';
-            } else {
-              props.layout = 'free';
-            }
-          }
-          break;
-        case 'line': {
-          const line = el.querySelector('div');
-          if (line) { props.color = cssValue(line.style.backgroundColor, '#fff'); props.lineWidth = parseInt(line.style.height) || 2; }
-          break;
-        }
-        case 'icon': {
-          const dataIcon = el.getAttribute('data-icon-name');
-          const iconPart = className.replace(/^.*\bel-icon-/, '').split(/\s/)[0];
-          props.iconName = dataIcon || iconPart || 'star';
-          props.iconSize = parseInt(el.style.fontSize) || 24;
-          props.color = cssValue(el.style.color, '#fff');
-          break;
-        }
-        case 'qr': {
-          const span = el.querySelector('[data-qr-data]') as HTMLElement | null;
-          props.data = span?.getAttribute('data-qr-data') || '';
-          props.qrSize = parseInt(span?.getAttribute('data-qr-size') || '100') || 100;
-          props.color = span?.getAttribute('data-qr-color') || '#000000';
-          props.bgColor = span?.getAttribute('data-qr-bg') || '#ffffff';
-          props.errorCorrection = (span?.getAttribute('data-qr-ecc') || 'M') as 'L' | 'M' | 'Q' | 'H';
-          break;
-        }
-      }
-
-      const extractableChildren: HTMLElement[] = [];
-      if (type === 'container' && el.children.length > 0) {
-        Array.from(el.children).forEach((child) => { if (hasElClass((child as HTMLElement).className || '')) extractableChildren.push(child as HTMLElement); });
-      }
-
-      let sourceHtml: string;
-      if (type === 'container' && extractableChildren.length > 0) {
-        const clone = el.cloneNode(true) as HTMLElement;
-        while (clone.firstChild) clone.removeChild(clone.firstChild);
-        sourceHtml = clone.outerHTML;
-      } else {
-        sourceHtml = el.outerHTML;
-      }
-
-      const cfId = `parsed_${Date.now()}_${zIndex}`;
-      elements.push({ id: cfId, type, x, y, width, height, rotation, opacity, zIndex: zIndexVal, visible: true, parentId: parentElId, props, meta: { sourceHtml, cfId, tagName: el.tagName.toLowerCase(), classList: Array.from(el.classList), inlineStyle: el.getAttribute('style') || '' } });
-
-      for (const child of extractableChildren) parseElementTree(child, cfId);
-    }
-
-    Array.from(root.children).forEach((child) => parseElementTree(child as HTMLElement));
-
-    // Оставляем запасной fallback для статичного HTML
     if (elements.length > 0 && !elements.some((e) => !e.parentId && (e.x !== 0 || e.y !== 0))) {
       const fbId = `fallback_${Date.now()}`;
       const fbSource = root.outerHTML;
@@ -733,16 +445,6 @@ export function parseTemplateToElements(
     console.error('Error parsing template:', error);
     return null;
   }
-}
-
-/**
- * Возвращает CSS-значение как есть если это gradient или var(),
- * иначе нормализует цвет через normalizeColor.
- */
-function cssValue(raw: string, fallback: string): string {
-  if (!raw) return normalizeColor(fallback);
-  if (raw.includes('gradient') || raw.includes('var(--')) return raw;
-  return normalizeColor(raw);
 }
 
 function escapeHtml(text: string): string {

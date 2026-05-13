@@ -2,6 +2,8 @@
  * Утилиты для двусторонней синхронизации Code ↔ Visual
  */
 
+import type { ElementProps } from '../../../store/canvasStore';
+
 export function rgbToHex(color: string): string {
   // rgb(r, g, b) → #rrggbb
   const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
@@ -145,7 +147,7 @@ export function extractManifest(html: string): {
     rotation: number;
     opacity: number;
     zIndex: number;
-    props: Record<string, any>;
+    props: ElementProps;
     parentId?: string;
   }>;
   cardSize?: { widthMm: number; heightMm: number; bleedMm: number };
@@ -174,7 +176,7 @@ export function createManifest(
     rotation: number;
     opacity: number;
     zIndex: number;
-    props: Record<string, any>;
+    props: ElementProps;
     parentId?: string;
     meta?: { sourceHtml?: string };
   }>,

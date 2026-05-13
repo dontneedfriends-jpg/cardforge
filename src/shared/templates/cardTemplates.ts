@@ -1964,6 +1964,575 @@ export const cardTemplates: CardTemplate[] = [
       { name: 'Thunder Bird', stage: 'Basic', hp: '90', type: 'Lightning', evolves: '-', attackName: 'Thunderbolt', cost1: 'Lightning', cost2: 'Colorless', cost3: '', damage: '50', abilityName: '', abilityDesc: '', retreat: '0', weakness: 'Fighting', image: 'assets/bird.png' },
     ],
   },
+  {
+    id: 'core',
+    name: 'Core',
+    description: 'Classic header/art/type/description layout — the standard TCG structure',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-core">
+  <div class="core-header">{{name}}</div>
+  <div class="core-art">
+    <div class="core-art-placeholder">{{type}}</div>
+  </div>
+  <div class="core-type">{{type}}</div>
+  <div class="core-description">{{description}}</div>
+  <div class="core-footer">
+    <span>{{faction}}</span>
+    <span>{{id}}</span>
+  </div>
+</div>`,
+    css: `
+.card-core {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #e0e0e0;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+.core-header {
+  background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
+  padding: 12px 16px;
+  font-size: 15px; font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.core-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.04);
+  margin: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.core-art-placeholder {
+  font-size: 12px; text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 2px;
+}
+.core-type {
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+  padding: 10px 16px;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1.5px; text-align: center;
+  color: rgba(255,255,255,0.6);
+}
+.core-description {
+  padding: 14px 16px;
+  font-size: 11px; line-height: 1.5;
+  color: rgba(255,255,255,0.8);
+  flex: 0 0 auto;
+  min-height: 64px;
+}
+.core-footer {
+  padding: 8px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}`,
+    sampleData: [
+      { name: 'Keeper of the Core', type: 'Ancient Brewer', description: 'The brewer is a very important card in the game. It allows you to brew potions and create powerful effects.', faction: 'Ciderians', id: '001' },
+      { name: 'Shadow Weaver', type: 'Mystic Creature', description: 'Weaves shadows into powerful fabrics that can shield allies or entangle foes.', faction: 'Night Council', id: '042' },
+    ],
+  },
+  {
+    id: 'mire',
+    name: 'Mire',
+    description: 'Badge overlay on art area, banner type bar — great for tokens and counters',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-mire">
+  <div class="mire-header">{{name}}</div>
+  <div class="mire-badge">{{badge}}</div>
+  <div class="mire-art">
+    <div class="mire-art-placeholder">{{type}}</div>
+  </div>
+  <div class="mire-type">{{type}}</div>
+  <div class="mire-description">{{description}}</div>
+  <div class="mire-footer">
+    <span>{{faction}}</span>
+    <span>{{id}}</span>
+  </div>
+</div>`,
+    css: `
+.card-mire {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #1b1b1b 0%, #2d1f1a 50%, #1a1a1a 100%);
+  color: #d4c5a9;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+.mire-header {
+  background: linear-gradient(90deg, rgba(180,140,100,0.2), rgba(180,140,100,0.05));
+  padding: 12px 16px;
+  font-size: 15px; font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid rgba(180,140,100,0.15);
+}
+.mire-badge {
+  position: absolute;
+  top: 52px; left: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800;
+  color: #fff; z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.mire-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.03);
+  margin: 8px;
+  border-radius: 8px;
+}
+.mire-art-placeholder {
+  font-size: 12px; text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 2px;
+}
+.mire-type {
+  background: linear-gradient(90deg, rgba(180,140,100,0.1), transparent);
+  padding: 8px 16px;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1.5px; text-align: center;
+  color: rgba(212,197,169,0.5);
+  width: 70%; margin: 0 auto -20px; z-index: 1;
+}
+.mire-description {
+  padding: 24px 16px 14px;
+  font-size: 11px; line-height: 1.5;
+  color: rgba(212,197,169,0.75);
+  min-height: 72px;
+}
+.mire-footer {
+  padding: 8px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px;
+  color: rgba(212,197,169,0.35);
+  border-top: 1px solid rgba(180,140,100,0.08);
+}`,
+    sampleData: [
+      { name: 'Bog Witch', type: 'Swamp Creature', description: 'Commands the murky waters and the creatures that dwell within.', badge: '3', faction: 'Mirefolk', id: '017' },
+      { name: 'Rotting Knight', type: 'Undead', description: 'Once a proud warrior, now serves the swamp as an eternal guardian.', badge: '5', faction: 'Mirefolk', id: '023' },
+    ],
+  },
+  {
+    id: 'mystic',
+    name: 'Mystic',
+    description: 'TCG-style with cost symbols, bordered art, type line, and ATK/DEF stats',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-mystic">
+  <div class="mystic-header">
+    <span>{{name}}</span>
+    <span class="mystic-cost">{{cost}}</span>
+  </div>
+  <div class="mystic-art">
+    <div class="mystic-art-placeholder">{{type}}</div>
+  </div>
+  <div class="mystic-type">
+    <span>{{type}} — {{magicks}}</span>
+  </div>
+  <div class="mystic-description">{{description}}</div>
+  <div class="mystic-stats">
+    <div class="mystic-stat">
+      <span class="mystic-stat-label">ATK</span>
+      <span class="mystic-stat-value">{{attack}}</span>
+    </div>
+    <div class="mystic-stat">
+      <span class="mystic-stat-label">DEF</span>
+      <span class="mystic-stat-value">{{defense}}</span>
+    </div>
+  </div>
+  <div class="mystic-footer">
+    <span>{{faction}}</span>
+    <span>{{id}}</span>
+  </div>
+</div>`,
+    css: `
+.card-mystic {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #0d0d2b 0%, #1a1040 50%, #0d0d2b 100%);
+  color: #c8c0e0;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+.mystic-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px;
+  font-size: 14px; font-weight: 700;
+  background: linear-gradient(90deg, rgba(120,80,200,0.15), transparent);
+  border-bottom: 1px solid rgba(120,80,200,0.15);
+}
+.mystic-cost {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 16px; font-weight: 800;
+  color: #f0c060;
+}
+.mystic-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  margin: 6px 10px;
+  border: 2px solid rgba(120,80,200,0.3);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+}
+.mystic-art-placeholder {
+  font-size: 11px; text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 2px;
+}
+.mystic-type {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 16px;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(200,192,224,0.5);
+  background: rgba(255,255,255,0.04);
+}
+.mystic-description {
+  padding: 12px 16px;
+  font-size: 11px; line-height: 1.5;
+  color: rgba(200,192,224,0.75);
+  flex: 0 0 auto;
+  min-height: 56px;
+}
+.mystic-stats {
+  display: flex; gap: 24px; justify-content: center;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(120,80,200,0.1);
+  border-bottom: 1px solid rgba(120,80,200,0.1);
+  margin: 0 24px;
+}
+.mystic-stat {
+  display: flex; align-items: center; gap: 6px;
+}
+.mystic-stat-label {
+  font-size: 9px; text-transform: uppercase;
+  color: rgba(200,192,224,0.4);
+  letter-spacing: 1px;
+}
+.mystic-stat-value {
+  font-size: 16px; font-weight: 800;
+  color: #f0c060;
+}
+.mystic-footer {
+  padding: 8px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px;
+  color: rgba(200,192,224,0.3);
+  border-top: 1px solid rgba(120,80,200,0.06);
+}`,
+    sampleData: [
+      { name: 'Ancient Brewer', cost: '3', type: 'Creature', magicks: 'Arcane', description: 'The brewer is a very important card in the game. It allows you to brew potions.', attack: '4', defense: '3', faction: 'Ciderians', id: '007' },
+      { name: 'Storm Mage', cost: '5', type: 'Mage', magicks: 'Tempest', description: 'Commands the lightning and thunder. Unleashes devastating storms upon foes.', attack: '6', defense: '2', faction: 'Skyhold', id: '031' },
+    ],
+  },
+  {
+    id: 'arcane',
+    name: 'Arcane',
+    description: 'Art at the top, header below, triple badge layout — for complex spell cards',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-arcane">
+  <div class="arcane-badge">{{badge1}}</div>
+  <div class="arcane-art">
+    <div class="arcane-art-placeholder">{{type}}</div>
+  </div>
+  <div class="arcane-header">{{name}}</div>
+  <div class="arcane-badge-row">
+    <span class="arcane-badge-sm">{{badge2}}</span>
+    <span class="arcane-badge-sm">{{badge3}}</span>
+  </div>
+  <div class="arcane-type">{{type}} — {{magicks}}</div>
+  <div class="arcane-description">{{description}}</div>
+  <div class="arcane-footer">
+    <span>{{faction}}</span>
+    <span>{{id}}</span>
+  </div>
+</div>`,
+    css: `
+.card-arcane {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #0a0a1a 0%, #1a0a2e 50%, #0a0a1a 100%);
+  color: #e0d0f0;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+.arcane-badge {
+  position: absolute;
+  top: 8px; left: 8px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+  color: #fff; z-index: 2;
+  box-shadow: 0 2px 8px rgba(108,92,231,0.5);
+}
+.arcane-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.03);
+  margin: 8px 8px 4px;
+  border-radius: 8px;
+  min-height: 80px;
+}
+.arcane-art-placeholder {
+  font-size: 11px; text-transform: uppercase;
+  color: rgba(255,255,255,0.18);
+  letter-spacing: 2px;
+}
+.arcane-header {
+  padding: 8px 14px 4px 14px;
+  font-size: 14px; font-weight: 700;
+  text-align: left;
+  padding-left: 28px;
+  color: #c8b0e8;
+}
+.arcane-badge-row {
+  display: flex; gap: 8px;
+  justify-content: flex-end;
+  padding: 0 14px;
+  margin-top: -8px;
+}
+.arcane-badge-sm {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  color: #fff; z-index: 2;
+  box-shadow: 0 2px 6px rgba(108,92,231,0.4);
+}
+.arcane-type {
+  text-align: center;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(224,208,240,0.4);
+  padding: 4px 0;
+  margin-top: -4px;
+}
+.arcane-description {
+  padding: 12px 16px;
+  font-size: 11px; line-height: 1.5;
+  color: rgba(224,208,240,0.7);
+  min-height: 60px;
+  flex: 0 0 auto;
+}
+.arcane-footer {
+  padding: 8px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px;
+  color: rgba(224,208,240,0.3);
+  border-top: 1px solid rgba(108,92,231,0.08);
+}`,
+    sampleData: [
+      { name: 'Arcane Blast', badge1: '5', badge2: '2', badge3: '3', type: 'Spell', magicks: 'Destruction', description: 'Unleashes a powerful burst of arcane energy that devastates all enemies.', faction: 'Arcane Order', id: '099' },
+      { name: 'Mystic Barrier', badge1: '3', badge2: '1', badge3: '1', type: 'Enchantment', magicks: 'Protection', description: 'Creates a shimmering barrier that protects allies from incoming damage.', faction: 'Arcane Order', id: '104' },
+    ],
+  },
+  {
+    id: 'keep',
+    name: 'Keep',
+    description: 'Minimal layout — header, badge, full art area, footer. Perfect for locations',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-keep">
+  <div class="keep-header">{{name}}</div>
+  <div class="keep-badge">{{badge}}</div>
+  <div class="keep-art">
+    <div class="keep-art-placeholder">{{type}}</div>
+  </div>
+  <div class="keep-footer">
+    <span>{{faction}}</span>
+    <span>{{id}}</span>
+  </div>
+</div>`,
+    css: `
+.card-keep {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #2c2c2c 0%, #1a1a1a 50%, #2c2c2c 100%);
+  color: #c0c0c0;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+.keep-header {
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+  padding: 14px 16px;
+  font-size: 16px; font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.keep-badge {
+  position: absolute;
+  top: 56px; left: 12px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e67e22, #f39c12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800;
+  color: #fff; z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.keep-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  margin: 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.keep-art-placeholder {
+  font-size: 12px; text-transform: uppercase;
+  color: rgba(255,255,255,0.18);
+  letter-spacing: 2px;
+}
+.keep-footer {
+  padding: 10px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}`,
+    sampleData: [
+      { name: 'The Iron Keep', badge: '7', type: 'Location', faction: 'Northern Realms', id: 'K01' },
+      { name: 'Sunken Temple', badge: '4', type: 'Location', faction: 'Ancient Ones', id: 'K07' },
+    ],
+  },
+  {
+    id: 'trick',
+    name: 'Trick',
+    description: 'Playing-card style with rank/suit symbols — for card games, roguelikes, and decks',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-trick">
+  <div class="trick-header">
+    <div class="trick-suit-stack">
+      <div class="trick-rank">{{rank}}</div>
+      <div class="trick-suit">{{suit}}</div>
+    </div>
+    <div class="trick-name-stack">
+      <div class="trick-name">{{name}}</div>
+      <div class="trick-desc">{{description}}</div>
+    </div>
+  </div>
+  <div class="trick-art">
+    <div class="trick-art-placeholder">{{suit}}</div>
+  </div>
+  <div class="trick-footer">
+    <div class="trick-suit-stack">
+      <div class="trick-rank">{{rank}}</div>
+      <div class="trick-suit">{{suit}}</div>
+    </div>
+    <div class="trick-name-stack">
+      <div class="trick-name">{{name}}</div>
+      <div class="trick-desc">{{description}}</div>
+    </div>
+  </div>
+</div>`,
+    css: `
+.card-trick {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #f5f0e8 0%, #e8e0d0 100%);
+  color: #2c1810;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  padding: 6px;
+}
+.trick-header {
+  display: flex; gap: 8px;
+  flex-shrink: 0;
+}
+.trick-suit-stack {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 36px;
+}
+.trick-rank {
+  font-size: 22px; font-weight: 800;
+  line-height: 1;
+}
+.trick-suit {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 2px;
+  color: #c0392b;
+}
+.trick-name-stack {
+  display: flex; flex-direction: column;
+  flex: 1;
+  background: rgba(255,255,255,0.5);
+  border-radius: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.trick-name {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.trick-desc {
+  font-size: 9px;
+  color: rgba(44,24,16,0.5);
+  line-height: 1.3;
+  overflow: hidden;
+  max-height: 28px;
+}
+.trick-art {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  margin: 6px 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(192,57,43,0.05), rgba(192,57,43,0.1));
+  border: 1px solid rgba(192,57,43,0.1);
+}
+.trick-art-placeholder {
+  font-size: 48px;
+  color: rgba(192,57,43,0.15);
+}
+.trick-footer {
+  display: flex; gap: 8px;
+  transform: rotate(180deg);
+  flex-shrink: 0;
+}`,
+    sampleData: [
+      { name: 'Ace of Hearts', rank: 'A', suit: '♥', description: 'The heart of all cards — wild and unpredictable.' },
+      { name: 'Jester King', rank: 'J', suit: '♠', description: 'The king of tricks and deception.' },
+    ],
+  },
+  {
+    id: 'blank',
+    name: 'Blank',
+    description: 'Empty canvas — start from scratch with no predefined layout',
+    cardSize: { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    html: `<div class="card-blank">
+  <div class="blank-content">{{content}}</div>
+</div>`,
+    css: `
+.card-blank {
+  width: 100%; height: 100%;
+  background: var(--mica-layer-1, #f0f0f0);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--mica-stroke, #ccc);
+  border-radius: 12px;
+}
+.blank-content {
+  font-size: 12px;
+  color: var(--mica-text-tertiary, #999);
+  text-align: center;
+  padding: 16px;
+}`,
+    sampleData: [
+      { content: 'Design your card here' },
+    ],
+  },
 ];
 
 export function getTemplateById(id: string): CardTemplate | undefined {

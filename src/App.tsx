@@ -15,13 +15,17 @@ export default function App() {
 
   useEffect(() => {
     if (projectPath) {
-      openProject(projectPath).catch(() => {});
+      openProject(projectPath).catch(() => {
+        console.warn('[App] Failed to open project');
+      });
     }
   }, [projectPath]);
 
   useEffect(() => {
     if (projectPath) {
-      loadFontsIntoDocument(projectPath).catch(() => {});
+      loadFontsIntoDocument(projectPath).catch(() => {
+        console.warn('[App] Failed to load fonts');
+      });
     }
   }, [projectPath]);
 

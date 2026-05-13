@@ -1,12 +1,14 @@
 import { Text, makeStyles, mergeClasses, Button, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Card, CardHeader, CardPreview, MessageBar, MessageBarBody, ProgressBar } from '@fluentui/react-components';
-import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, BoardRegular, type FluentIcon } from '@fluentui/react-icons';
+import { DocumentRegular, CodeRegular, TableRegular, FolderRegular, DocumentCssRegular, AddRegular, BoardRegular, HatGraduationRegular, type FluentIcon } from '@fluentui/react-icons';
 import { useProjectStore, useDeckStore, useEditorStore, useUiStore } from '../../store';
+import { TemplateWizardDialog } from '../template-wizard/TemplateWizardDialog';
 import { readDir, readFile } from '@tauri-apps/plugin-fs';
 import { useEffect, useState } from 'react';
 import { cardTemplates, type CardTemplate } from '../../shared/templates/cardTemplates';
-import { CARD_SIZE_PRESETS } from '../../shared/cardSizes';
+import { CARD_SIZE_PRESETS, DEFAULT_CARD_SIZE } from '../../shared/cardSizes';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import type { DeckMeta } from '../../shared/types/project';
 
   const useStyles = makeStyles({
   container: {
@@ -83,6 +85,7 @@ export function ProjectSidebar() {
   const defaultCardSizePreset = useUiStore((s) => s.defaultCardSizePreset);
   const [files, setFiles] = useState<string[]>([]);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isWizardDialogOpen, setIsWizardDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CardTemplate | null>(null);
   const [deckName, setDeckName] = useState('');
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
@@ -100,7 +103,7 @@ export function ProjectSidebar() {
     }).catch(() => setFiles([]));
   }, [projectPath, activeDeck]);
 
-  const handleSelectDeck = async (deck: any) => {
+  const handleSelectDeck = async (deck: DeckMeta) => {
     if (!projectPath) return;
     const fullPath = `${projectPath}/${deck.path}`;
     setActiveDeck(deck.id);
@@ -113,7 +116,7 @@ export function ProjectSidebar() {
     if (!projectPath || !deckName.trim()) return;
 
     const preset = CARD_SIZE_PRESETS.find(p => p.id === defaultCardSizePreset);
-    const cardSize = selectedTemplate?.cardSize ?? preset ?? { widthMm: 63, heightMm: 88, bleedMm: 3 };
+    const cardSize = selectedTemplate?.cardSize ?? preset ?? DEFAULT_CARD_SIZE;
     
     // Add deck to manifest
     addDeck(deckName, cardSize);
@@ -238,8 +241,7 @@ export function ProjectSidebar() {
       });
 
       // Add deck to manifest and select it
-      const cardSize = { widthMm: 63, heightMm: 88, bleedMm: 3 };
-      addDeck(ttsInfo.deckName, cardSize);
+      addDeck(ttsInfo.deckName, DEFAULT_CARD_SIZE);
 
       // Select the new deck
       const updatedManifest = useProjectStore.getState().manifest;
@@ -276,6 +278,14 @@ export function ProjectSidebar() {
         <div className={styles.header}>
           <Text size={300} weight="semibold">Decks</Text>
           <div style={{ display: 'flex', gap: 4 }}>
+            <Button
+              icon={<HatGraduationRegular />}
+              size="small"
+              onClick={(e) => { e.stopPropagation(); setIsWizardDialogOpen(true); }}
+              title="Template Wizard — step by step"
+            >
+              Wizard
+            </Button>
             <Button
               icon={<BoardRegular />}
               size="small"
@@ -317,6 +327,8 @@ export function ProjectSidebar() {
           </div>
         ))}
       </div>
+
+      <TemplateWizardDialog open={isWizardDialogOpen} onOpenChange={setIsWizardDialogOpen} />
 
       <Dialog open={isTemplateDialogOpen} onOpenChange={() => setIsTemplateDialogOpen(false)}>
         <DialogSurface style={{ maxWidth: 700, maxHeight: '80vh' }}>

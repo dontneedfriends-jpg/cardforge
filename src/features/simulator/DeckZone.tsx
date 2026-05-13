@@ -119,7 +119,7 @@ export function DeckZone({
     <>
       <div className={styles.container}>
         <Tooltip content="Click to draw a specific card" relationship="label">
-          <div className={styles.pile} onClick={() => deckCount > 0 && setDrawOpen(true)}>
+          <div className={styles.pile} onClick={() => deckCount > 0 && setDrawOpen(true)} role="button" tabIndex={0} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && deckCount > 0) { e.preventDefault(); setDrawOpen(true); } }}>
             <div className={`${styles.pileBox} ${deckCount > 0 ? styles.pileBoxActive : ''}`}>
               {deckCount}
             </div>
@@ -135,7 +135,7 @@ export function DeckZone({
         </div>
 
         <Tooltip content={discardCount > 0 ? 'Click to see discarded cards' : ''} relationship="label">
-          <div className={styles.pile} onClick={() => discardCount > 0 && setDiscardOpen(true)}>
+          <div className={styles.pile} onClick={() => discardCount > 0 && setDiscardOpen(true)} role="button" tabIndex={0} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && discardCount > 0) { e.preventDefault(); setDiscardOpen(true); } }}>
             <div className={`${styles.pileBox} ${discardCount > 0 ? styles.pileBoxDanger : ''}`}>
               {discardCount}
             </div>
@@ -183,6 +183,9 @@ export function DeckZone({
                       onDrawSpecific(rowIndex);
                       setDrawOpen(false);
                     }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDrawSpecific(rowIndex); setDrawOpen(false); } }}
                   >
                     <Text size={300}>{getCardLabel(row)}</Text>
                   </div>

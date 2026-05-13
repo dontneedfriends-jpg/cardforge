@@ -51,24 +51,31 @@ const useStyles = makeStyles({
 export function ContextMenu({ x, y, zone, onFlip, onAlign, onRotate, onPlay, onDiscard, onReturnToDeck, onClose }: ContextMenuProps) {
   const styles = useStyles();
 
+  const handleKeyDown = (handler: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handler();
+    }
+  };
+
   return (
     <>
-      <div className={styles.overlay} onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
-      <div className={styles.menu} style={{ left: x, top: y }}>
+      <div className={styles.overlay} onClick={onClose} onContextMenu={(e) => e.preventDefault()} role="presentation" />
+      <div className={styles.menu} style={{ left: x, top: y }} role="menu">
         {zone === 'hand' && (
-          <div className={styles.item} onClick={onPlay}>Play to Table</div>
+          <div className={styles.item} onClick={onPlay} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onPlay)}>Play to Table</div>
         )}
         {zone !== 'hand' && (
           <>
-            <div className={styles.item} onClick={onFlip}>Flip</div>
-            <div className={styles.item} onClick={onAlign}>Align</div>
-            <div className={styles.item} onClick={onRotate}>Rotate 45°</div>
+            <div className={styles.item} onClick={onFlip} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onFlip)}>Flip</div>
+            <div className={styles.item} onClick={onAlign} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onAlign)}>Align</div>
+            <div className={styles.item} onClick={onRotate} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onRotate)}>Rotate 45°</div>
           </>
         )}
         {(zone === 'hand' || zone === 'playArea') && (
-          <div className={styles.item} onClick={onDiscard}>Discard</div>
+          <div className={styles.item} onClick={onDiscard} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onDiscard)}>Discard</div>
         )}
-        <div className={styles.item} onClick={onReturnToDeck}>Return to Deck</div>
+        <div className={styles.item} onClick={onReturnToDeck} role="menuitem" tabIndex={0} onKeyDown={handleKeyDown(onReturnToDeck)}>Return to Deck</div>
       </div>
     </>
   );

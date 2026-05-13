@@ -1,9 +1,10 @@
 import { ToggleButton, Tab, TabList, Button, makeStyles, Text } from '@fluentui/react-components';
-import { CodeRegular, BorderNoneRegular, SaveRegular, ColorRegular } from '@fluentui/react-icons';
+import { CodeRegular, BorderNoneRegular, SaveRegular } from '@fluentui/react-icons';
 import { useEditorStore, useUiStore } from '../../store';
 import { CodeEditor } from './CodeEditor';
 import { VisualEditor } from './VisualEditor';
 import { CardBackEditor } from './CardBackEditor';
+import { CardBackCodeEditor } from './CardBackCodeEditor';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useStyles = makeStyles({
@@ -47,9 +48,13 @@ export function TemplateEditor() {
   const styles = useStyles();
   const editorMode = useEditorStore((s) => s.editorMode);
   const setEditorMode = useEditorStore((s) => s.setEditorMode);
+  const cardBackEditorMode = useEditorStore((s) => s.cardBackEditorMode);
+  const setCardBackEditorMode = useEditorStore((s) => s.setCardBackEditorMode);
   const isDirty = useEditorStore((s) => s.isDirty);
   const syncVisualToCode = useEditorStore((s) => s.syncVisualToCode);
   const syncCodeToVisual = useEditorStore((s) => s.syncCodeToVisual);
+  const syncCardBackVisualToCode = useEditorStore((s) => s.syncCardBackVisualToCode);
+  const syncCardBackCodeToVisual = useEditorStore((s) => s.syncCardBackCodeToVisual);
   const saveTemplate = useEditorStore((s) => s.saveTemplate);
   const saveCardBack = useEditorStore((s) => s.saveCardBack);
   const [tab, setTab] = useState<string>('front');
@@ -71,17 +76,25 @@ export function TemplateEditor() {
 
   const handleModeSwitch = (mode: 'code' | 'visual') => {
     if (mode === editorMode) return;
-    
     if (mode === 'visual') {
-      // Code → Visual: парсим HTML в canvas элементы
-      // syncCodeToVisual возвращает false если не удалось распарсить
       if (syncCodeToVisual()) {
         setEditorMode('visual');
       }
     } else {
-      // Visual → Code: генерируем HTML из canvas элементов
       syncVisualToCode();
       setEditorMode('code');
+    }
+  };
+
+  const handleCardBackModeSwitch = (mode: 'code' | 'visual') => {
+    if (mode === cardBackEditorMode) return;
+    if (mode === 'code') {
+      syncCardBackVisualToCode();
+      setCardBackEditorMode('code');
+    } else {
+      if (syncCardBackCodeToVisual()) {
+        setCardBackEditorMode('visual');
+      }
     }
   };
 
@@ -131,8 +144,24 @@ export function TemplateEditor() {
 
         {tab === 'back' && (
           <div className={styles.modeButtons} style={{ marginLeft: 12 }}>
-            <ColorRegular fontSize={16} />
-            <Text size={200}>Design Editor</Text>
+            <ToggleButton
+              icon={<CodeRegular />}
+              checked={cardBackEditorMode === 'code'}
+              onClick={() => handleCardBackModeSwitch('code')}
+              size="small"
+              appearance={cardBackEditorMode === 'code' ? 'primary' : 'subtle'}
+            >
+              Code
+            </ToggleButton>
+            <ToggleButton
+              icon={<BorderNoneRegular />}
+              checked={cardBackEditorMode === 'visual'}
+              onClick={() => handleCardBackModeSwitch('visual')}
+              size="small"
+              appearance={cardBackEditorMode === 'visual' ? 'primary' : 'subtle'}
+            >
+              Visual
+            </ToggleButton>
           </div>
         )}
 
@@ -142,7 +171,7 @@ export function TemplateEditor() {
           <Text size={200}>
             {tab === 'front'
               ? (editorMode === 'code' ? 'Edit HTML/CSS directly' : 'Drag & drop elements')
-              : 'Customize card back appearance'}
+              : (cardBackEditorMode === 'code' ? 'Edit card back HTML/CSS' : 'Customize card back appearance')}
           </Text>
           <Button
             icon={<SaveRegular />}
@@ -156,7 +185,9 @@ export function TemplateEditor() {
         </div>
       </div>
 
-      {tab === 'front' ? renderFrontEditor() : <CardBackEditor />}
+      {tab === 'front' ? renderFrontEditor() : (
+        cardBackEditorMode === 'code' ? <CardBackCodeEditor /> : <CardBackEditor />
+      )}
     </div>
   );
 }

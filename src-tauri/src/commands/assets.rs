@@ -206,6 +206,27 @@ pub async fn import_asset(project_path: String, source_path: String, target_fold
 }
 
 #[tauri::command]
+pub async fn write_asset_file(project_path: String, filename: String, content: String) -> Result<AssetInfo, String> {
+    let assets_dir = Path::new(&project_path).join("assets");
+    fs::create_dir_all(&assets_dir)
+        .map_err(|e| format!("Failed to create assets directory: {}", e))?;
+    let file_path = assets_dir.join(&filename);
+    fs::write(&file_path, &content)
+        .map_err(|e| format!("Failed to write asset file: {}", e))?;
+    let metadata = fs::metadata(&file_path)
+        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let relative_path = format!("assets/{}", filename);
+    Ok(AssetInfo {
+        name: filename,
+        path: file_path.to_string_lossy().to_string(),
+        relative_path,
+        size_bytes: metadata.len(),
+        thumbnail_base64: generate_thumbnail(&file_path),
+        is_folder: false,
+    })
+}
+
+#[tauri::command]
 pub async fn delete_asset(asset_path: String) -> Result<(), String> {
     fs::remove_file(&asset_path)
         .map_err(|e| format!("Failed to delete asset: {}", e))?;

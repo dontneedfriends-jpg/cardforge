@@ -6,7 +6,6 @@ import { WelcomePage } from './features/welcome/WelcomePage';
 import { EditorPage } from './features/welcome/EditorPage';
 import { SimulatorPage } from './features/simulator/SimulatorPage';
 import { ExportPage } from './features/export/ExportPage';
-import { SettingsPage } from './features/settings/SettingsPage';
 import { useUiStore } from './store';
 import { useGlobalHotkeys } from './shared/hooks/useGlobalHotkeys';
 
@@ -77,13 +76,7 @@ const exportRoute = createRoute({
   component: ExportPage,
 });
 
-const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/settings',
-  component: SettingsPage,
-});
-
-const routeTree = rootRoute.addChildren([welcomeRoute, editorRoute, simulatorRoute, exportRoute, settingsRoute]);
+const routeTree = rootRoute.addChildren([welcomeRoute, editorRoute, simulatorRoute, exportRoute]);
 
 export const router = createRouter({ routeTree });
 

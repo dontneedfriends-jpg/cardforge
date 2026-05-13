@@ -1,4 +1,6 @@
 import React from 'react';
+import { useDeckStore, useEditorStore } from '../../../../store';
+import { replaceVariables, cssVariableValue } from '../../../../shared/utils/renderTemplate';
 
 export interface ContainerElementProps {
   background: string;
@@ -24,10 +26,17 @@ export const ContainerElement = React.memo(function ContainerElement(props: Part
   const { background, borderRadius, borderWidth, borderColor, padding, rawHtml, rawCss, meta,
     layout, columns, rows, gap, direction, alignItems, justifyContent } = props;
 
-  const htmlContent = rawHtml || meta?.sourceHtml;
+  const deckData = useDeckStore((s) => s.deckData);
+  const previewCardIndex = useEditorStore((s) => s.previewCardIndex);
+  const previewRow = deckData?.rows?.[previewCardIndex] ?? deckData?.rows?.[0] ?? {};
+
+  const resolvedHtml = rawHtml ? replaceVariables(rawHtml, previewRow) : '';
+  const resolvedCss = rawCss ? cssVariableValue(rawCss, previewRow) : '';
+
+  const htmlContent = resolvedHtml || meta?.sourceHtml;
 
   if (htmlContent) {
-    const styleContent = rawCss || '';
+    const styleContent = resolvedCss || '';
     return (
       <div
         style={{

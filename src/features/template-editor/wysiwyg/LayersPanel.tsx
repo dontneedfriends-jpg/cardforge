@@ -101,7 +101,7 @@ function renderTree(
     const isSelected = selectedId === node.id;
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsed.has(node.id);
-    const isGroup = node.props?.childrenIds?.length > 0;
+    const isGroup = (node.props.childrenIds?.length ?? 0) > 0;
 
     result.push(
       <div

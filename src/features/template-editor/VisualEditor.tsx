@@ -18,7 +18,8 @@ import { Canvas } from './wysiwyg/Canvas';
 import { ElementPanel } from './wysiwyg/ElementPanel';
 import { PropertiesPanel } from './wysiwyg/PropertiesPanel';
 import { LayersPanel } from './wysiwyg/LayersPanel';
-import { useDeckStore, useCanvasStore } from '../../store';
+import { DEFAULT_CARD_SIZE } from '../../shared/cardSizes';
+import { useDeckStore, useCanvasStore, useEditorStore } from '../../store';
 
 const useStyles = makeStyles({
   container: {
@@ -44,11 +45,19 @@ const useStyles = makeStyles({
   rightPanel: {
     width: '240px',
     borderLeft: '1px solid var(--mica-stroke)',
-    overflow: 'auto',
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--mica-layer-1)',
+  },
+  rightSection: {
+    flex: 1,
+    overflow: 'auto',
+  },
+  rightSectionBordered: {
+    flex: 1,
+    overflow: 'auto',
+    borderBottom: '1px solid var(--mica-stroke)',
   },
   toolbar: {
     height: '32px',
@@ -65,7 +74,7 @@ const useStyles = makeStyles({
 export function VisualEditor() {
   const styles = useStyles();
   const deckData = useDeckStore((s) => s.deckData);
-  const cardSize = deckData?.meta.cardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 };
+  const cardSize = deckData?.meta.cardSize || DEFAULT_CARD_SIZE;
   
   const selectedIds = useCanvasStore((s) => s.selectedIds);
   const undo = useCanvasStore((s) => s.undo);
@@ -77,6 +86,8 @@ export function VisualEditor() {
   const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
   const zoom = useCanvasStore((s) => s.zoom);
   const setZoom = useCanvasStore((s) => s.setZoom);
+  const previewCardIndex = useEditorStore((s) => s.previewCardIndex);
+  const setPreviewCardIndex = useEditorStore((s) => s.setPreviewCardIndex);
 
   return (
     <div className={styles.container}>
@@ -89,6 +100,27 @@ export function VisualEditor() {
       <div className={styles.center}>
         <div className={styles.toolbar}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Canvas</span>
+          {deckData && deckData.rows.length > 1 && (
+            <>
+              <div style={{ width: '1px', height: '16px', background: 'var(--mica-stroke)', margin: '0 6px' }} />
+              <select
+                value={previewCardIndex}
+                onChange={(e) => setPreviewCardIndex(Number(e.target.value))}
+                style={{
+                  fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                  background: 'var(--mica-layer-1)', color: 'var(--mica-text-primary)',
+                  border: '1px solid var(--mica-stroke)', outline: 'none',
+                  fontFamily: "'IBM Plex Sans', sans-serif", maxWidth: '120px',
+                }}
+              >
+                {deckData.rows.map((_r, i) => (
+                  <option key={i} value={i}>
+                    Card {i + 1}{deckData.columns[0] ? `: ${String(deckData.rows[i][deckData.columns[0].name] ?? '')}` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
             <Tooltip content="Undo (Ctrl+Z)" relationship="label">
               <Button icon={<ArrowUndoRegular />} size="small" appearance="subtle" onClick={undo} />
@@ -145,13 +177,13 @@ export function VisualEditor() {
         />
       </div>
       <div className={styles.rightPanel}>
-        <div style={{ flex: 1, overflow: 'auto', borderBottom: '1px solid var(--mica-stroke)' }}>
+        <div className={styles.rightSectionBordered}>
           <div className={styles.toolbar}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Properties</span>
           </div>
           <PropertiesPanel />
         </div>
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className={styles.rightSection}>
           <div className={styles.toolbar}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mica-text-tertiary)' }}>Layers</span>
           </div>

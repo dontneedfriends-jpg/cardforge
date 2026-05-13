@@ -112,18 +112,20 @@ export function AssetPickerDialog({
   const projectPath = useProjectStore((s) => s.projectPath);
   const [assets, setAssets] = useState<AssetInfo[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  interface AssetEntry {
+  name: string;
+  path: string;
+  thumbnailBase64: string;
+}
+
+const [loading, setLoading] = useState(false);
 
   const loadAssets = useCallback(async () => {
     if (!projectPath) return;
     setLoading(true);
     try {
-      const result = await invoke('list_assets', { projectPath }) as any[];
-      setAssets(result.map((a: any) => ({
-        name: a.name,
-        path: a.path,
-        thumbnailBase64: a.thumbnailBase64,
-      })));
+      const result = await invoke<AssetEntry[]>('list_assets', { projectPath });
+      setAssets(result);
     } catch (e) {
       console.error('Failed to load assets:', e);
     } finally {

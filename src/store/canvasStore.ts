@@ -3,6 +3,88 @@ import { immer } from 'zustand/middleware/immer';
 
 export type ElementType = 'text' | 'image' | 'shape' | 'circle' | 'line' | 'icon' | 'field' | 'container' | 'qr';
 
+export interface TextElementProps {
+  text?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  color?: string;
+  fontFamily?: string;
+  textAlign?: string;
+  textStroke?: number;
+  textStrokeColor?: string;
+  textShadow?: string;
+  fieldName?: string;
+}
+
+export interface ImageElementProps {
+  src?: string;
+  fieldName?: string;
+  isField?: boolean;
+}
+
+export interface ShapeElementProps {
+  background?: string;
+  fill?: string;
+  borderRadius?: number;
+  borderWidth?: number;
+  borderColor?: string;
+}
+
+export interface CircleElementProps {
+  background?: string;
+  borderWidth?: number;
+  borderColor?: string;
+}
+
+export interface LineElementProps {
+  color?: string;
+  lineWidth?: number;
+}
+
+export interface IconElementProps {
+  iconName?: string;
+  iconSize?: number;
+  color?: string;
+}
+
+export interface QrElementProps {
+  data?: string;
+  qrSize?: number;
+  color?: string;
+  bgColor?: string;
+  errorCorrection?: 'L' | 'M' | 'Q' | 'H';
+}
+
+export interface ContainerElementProps {
+  background?: string;
+  fill?: string;
+  borderRadius?: number;
+  borderWidth?: number;
+  borderColor?: string;
+  padding?: number;
+  layout?: 'free' | 'grid' | 'stack';
+  columns?: number;
+  rows?: number;
+  gap?: number;
+  direction?: string;
+  alignItems?: string;
+  justifyContent?: string;
+  rawHtml?: string;
+  rawCss?: string;
+  childrenIds?: string[];
+}
+
+export type ElementProps = Partial<
+  TextElementProps &
+  ImageElementProps &
+  ShapeElementProps &
+  CircleElementProps &
+  LineElementProps &
+  IconElementProps &
+  QrElementProps &
+  ContainerElementProps
+>;
+
 export interface CanvasElementMeta {
   sourceHtml?: string;
   sourceSelector?: string;
@@ -12,6 +94,18 @@ export interface CanvasElementMeta {
   customAttrs?: Record<string, string>;
   cfId?: string;
 }
+
+export type ElementPropsByType = {
+  text: Partial<TextElementProps>;
+  field: Partial<TextElementProps>;
+  image: Partial<ImageElementProps>;
+  shape: Partial<ShapeElementProps>;
+  circle: Partial<CircleElementProps>;
+  line: Partial<LineElementProps>;
+  icon: Partial<IconElementProps>;
+  qr: Partial<QrElementProps>;
+  container: Partial<ContainerElementProps>;
+};
 
 export interface CanvasElement {
   id: string;
@@ -24,7 +118,7 @@ export interface CanvasElement {
   opacity: number;
   zIndex: number;
   visible: boolean;
-  props: Record<string, any>;
+  props: ElementProps;
   meta?: CanvasElementMeta;
   parentId?: string;
 }
@@ -39,7 +133,7 @@ export interface ElementPreset {
   id: string;
   name: string;
   type: ElementType;
-  props: Record<string, any>;
+  props: ElementProps;
 }
 
 interface CanvasState {
@@ -57,7 +151,7 @@ interface CanvasState {
 interface CanvasActions {
   addElement: (element: Omit<CanvasElement, 'id'>) => void;
   updateElement: (id: string, updates: Partial<CanvasElement>) => void;
-  updateElementProps: (id: string, props: Record<string, any>) => void;
+  updateElementProps: (id: string, props: Partial<ElementProps>) => void;
   deleteElement: (id: string) => void;
   deleteSelected: () => void;
   selectElement: (id: string | null) => void;
@@ -528,7 +622,7 @@ export const useCanvasStore = create<CanvasStore>()(
 
         const containers = state.elements.filter(
           (e) => state.selectedIds.includes(e.id) && e.type === 'container' &&
-            ((e.props?.childrenIds?.length > 0) || state.elements.some((c) => c.parentId === e.id))
+            (((e.props.childrenIds?.length ?? 0) > 0) || state.elements.some((c) => c.parentId === e.id))
         );
 
         containers.forEach((container) => {

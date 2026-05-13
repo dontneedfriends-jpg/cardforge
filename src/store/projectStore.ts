@@ -12,8 +12,9 @@ interface ProjectStoreActions {
   openProject: (path: string) => Promise<void>;
   createProject: (path: string, name: string) => Promise<void>;
   saveManifest: () => Promise<void>;
-  addDeck: (name: string, cardSize: CardSize) => void;
-  removeDeck: (deckId: string) => void;
+  addDeck: (name: string, cardSize: CardSize) => Promise<void>;
+  removeDeck: (deckId: string) => Promise<void>;
+  renameDeck: (deckId: string, newName: string) => Promise<void>;
 }
 
 type ProjectStore = ProjectStoreState & ProjectStoreActions;
@@ -62,7 +63,8 @@ export const useProjectStore = create<ProjectStore>()(
       set((state) => { state.isDirty = false; });
     },
 
-    addDeck: (name: string, cardSize: CardSize) => {
+    addDeck: async (name: string, cardSize: CardSize) => {
+      const pp = get().projectPath;
       set((state) => {
         if (!state.manifest) return;
         const id = `deck_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
@@ -70,14 +72,40 @@ export const useProjectStore = create<ProjectStore>()(
         state.manifest.decks.push({ id, name, path, cardSize });
         state.isDirty = true;
       });
+      const st = get();
+      if (pp && st.manifest) {
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
     },
 
-    removeDeck: (deckId: string) => {
+    removeDeck: async (deckId: string) => {
+      const pp = get().projectPath;
       set((state) => {
         if (!state.manifest) return;
         state.manifest.decks = state.manifest.decks.filter((d) => d.id !== deckId);
         state.isDirty = true;
       });
+      const st = get();
+      if (pp && st.manifest) {
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
+    },
+
+    renameDeck: async (deckId: string, newName: string) => {
+      const pp = get().projectPath;
+      set((state) => {
+        if (!state.manifest) return;
+        const deck = state.manifest.decks.find((d) => d.id === deckId);
+        if (deck) deck.name = newName;
+        state.isDirty = true;
+      });
+      const st = get();
+      if (pp && st.manifest) {
+        await invoke('save_manifest', { path: pp, manifest: st.manifest });
+        set((s) => { s.isDirty = false; });
+      }
     },
   })),
   {

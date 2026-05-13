@@ -1,6 +1,6 @@
 import { TabList, Tab } from '@fluentui/react-components';
 import type { SelectTabEvent, SelectTabData } from '@fluentui/react-tabs';
-import Editor from '@monaco-editor/react';
+import Editor, { type BeforeMount } from '@monaco-editor/react';
 import { useEditorStore, useDeckStore } from '../../store';
 import { useEffect, useRef } from 'react';
 import { registerHandlebarsCompletions } from './HandlebarsHelper';
@@ -13,7 +13,7 @@ export function CodeEditor() {
   const setCss = useEditorStore((s) => s.setCss);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const columns = useDeckStore((s) => s.deckData?.columns) || [];
-  const monacoRef = useRef<any>(null);
+  const monacoRef = useRef<Parameters<BeforeMount>[0] | null>(null);
   const disposeRef = useRef<(() => void) | { dispose: () => void } | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function CodeEditor() {
     }
   }, [columns]);
 
-  const handleBeforeMount = (monaco: any) => {
+  const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
   };
 

@@ -77,3 +77,42 @@ pub async fn write_card_back(deck_path: String, design: CardBackDesign) -> Resul
     fs::write(&path, content).map_err(|e| format!("Failed to write card_back.json: {}", e))?;
     Ok(())
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardBackTemplateFiles {
+    pub html: String,
+    pub css: String,
+}
+
+#[tauri::command]
+pub async fn read_card_back_template(deck_path: String) -> Result<CardBackTemplateFiles, String> {
+    let base = Path::new(&deck_path);
+    let html_path = base.join("cardback.html");
+    let css_path = base.join("cardback.css");
+
+    let html = if html_path.exists() {
+        fs::read_to_string(&html_path).map_err(|e| format!("Failed to read cardback.html: {}", e))?
+    } else {
+        String::new()
+    };
+
+    let css = if css_path.exists() {
+        fs::read_to_string(&css_path).map_err(|e| format!("Failed to read cardback.css: {}", e))?
+    } else {
+        String::new()
+    };
+
+    Ok(CardBackTemplateFiles { html, css })
+}
+
+#[tauri::command]
+pub async fn write_card_back_template(deck_path: String, html: String, css: String) -> Result<(), String> {
+    let base = Path::new(&deck_path);
+    fs::create_dir_all(base).map_err(|e| format!("Failed to create deck directory: {}", e))?;
+    fs::write(base.join("cardback.html"), &html)
+        .map_err(|e| format!("Failed to write cardback.html: {}", e))?;
+    fs::write(base.join("cardback.css"), &css)
+        .map_err(|e| format!("Failed to write cardback.css: {}", e))?;
+    Ok(())
+}

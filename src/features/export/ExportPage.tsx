@@ -5,7 +5,7 @@ import { exportAllCardsAsPng, generatePrintHtml, exportTtsSpritesheet } from './
 import type { PdfExportOptions } from '../../shared/types/project';
 import type { ProgressCallback } from './exportUtils';
 import { ProgressDialog } from '../../shared/components/ProgressDialog';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 const useStyles = makeStyles({
   container: {
@@ -79,9 +79,11 @@ export function ExportPage() {
 
   const decks = manifest?.decks || [];
 
-  if (decks.length > 0 && !selectedDeckId) {
-    setSelectedDeckId(decks[0].id);
-  }
+  useEffect(() => {
+    if (decks.length > 0 && !selectedDeckId) {
+      setSelectedDeckId(decks[0].id);
+    }
+  }, [decks.length, selectedDeckId]);
 
   const selectedDeck = manifest?.decks.find(d => d.id === selectedDeckId);
 
@@ -194,7 +196,7 @@ export function ExportPage() {
         <Text className={styles.sectionTitle}>Format</Text>
         <RadioGroup
           value={format}
-          onChange={(_e: unknown, data: any) => setFormat(data.value)}
+          onChange={(_e: unknown, data) => setFormat(data.value as 'png' | 'pdf' | 'tts')}
         >
           <Radio value="png" label="PNG — individual card images" />
           <Radio value="pdf" label="PDF — print-ready layout (opens print preview)" />

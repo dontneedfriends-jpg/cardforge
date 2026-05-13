@@ -5,6 +5,7 @@ import { mmToPx } from '../../theme';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { injectFontCss } from '../../shared/utils/fontUtils';
+import type { CellValue } from '../../shared/types/project';
 
 const DEFAULT_CARD_WIDTH = 63;
 const DEFAULT_CARD_HEIGHT = 88;
@@ -81,10 +82,13 @@ export function PreviewPanel() {
           ? [{}]
           : deckData.rows;
 
-        const fontCss = projectPathRef.current ? await injectFontCss(css, projectPathRef.current) : css;
+        let fontCss = css;
+        try {
+          if (projectPathRef.current) fontCss = await injectFontCss(css, projectPathRef.current);
+        } catch { /* font CSS not critical */ }
 
         const renderedHtmls = await Promise.all(
-          rows.map(async (row: Record<string, any>) => {
+          rows.map(async (row: Record<string, CellValue>) => {
             if (!projectPathRef.current) {
               const body = html.replace(/\{\{(\w+)\}\}/g, (_match: string, key: string) => {
                 return row[key] !== undefined ? String(row[key]) : '';
@@ -179,14 +183,9 @@ export function PreviewPanel() {
             Template is empty — write some HTML
           </Text>
         )}
-        {html.trim() && !deckData && (
+        {html.trim() && (!deckData || deckData.rows.length === 0) && (
           <Text size={300} className={styles.hint}>
-            No project open — preview shows empty template
-          </Text>
-        )}
-        {html.trim() && deckData && deckData.rows.length === 0 && (
-          <Text size={300} className={styles.hint}>
-            No cards to preview — add rows in the Data tab
+            {!deckData ? 'No card data loaded — add rows in the Data tab' : 'No cards to preview — add rows in the Data tab'}
           </Text>
         )}
         {loading && blobUrls.length === 0 && (
@@ -194,7 +193,7 @@ export function PreviewPanel() {
             Rendering preview...
           </Text>
         )}
-        {blobUrls.map((url: string, i: number) => (
+        {deckData && deckData.rows.length > 0 && blobUrls.map((url: string, i: number) => (
           <div
             key={`${i}-${url}`}
             className={styles.iframeWrap}

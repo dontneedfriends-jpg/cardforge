@@ -6,6 +6,7 @@ import { CardTable } from './CardTable';
 import { DeckZone } from './DeckZone';
 import { renderCardRow } from '../preview/CardRenderer';
 import { injectFontCss } from '../../shared/utils/fontUtils';
+import { DEFAULT_CARD_SIZE } from '../../shared/cardSizes';
 
 const useStyles = makeStyles({
   container: {
@@ -89,7 +90,7 @@ export function SimulatorPage() {
   );
 
   const cardSize = useMemo(
-    () => deckData?.meta.cardSize || { widthMm: 63, heightMm: 88, bleedMm: 3 },
+    () => deckData?.meta.cardSize || DEFAULT_CARD_SIZE,
     [deckData]
   );
 

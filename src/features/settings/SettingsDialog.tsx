@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Text,
   makeStyles,
@@ -11,66 +12,62 @@ import {
   Tab,
   Divider,
   Button,
+  Dialog,
+  DialogSurface,
+  DialogTitle,
+  DialogBody,
 } from '@fluentui/react-components';
 import {
   ArrowResetRegular,
+  DismissRegular,
 } from '@fluentui/react-icons';
-import { useState } from 'react';
 import { useUiStore } from '../../store';
 import { CARD_SIZE_PRESETS } from '../../shared/cardSizes';
 
 const useStyles = makeStyles({
-  container: {
+  dialogSurface: {
+    maxWidth: '780px',
+    maxHeight: '85vh',
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-    background: 'var(--mica-base)',
   },
-  header: {
+  dialogBody: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 32px',
-    borderBottom: '1px solid var(--mica-stroke)',
-    background: 'var(--mica-layer-1)',
-    backdropFilter: 'blur(40px)',
-  },
-  headerTitle: {
-    fontSize: '20px',
-    fontWeight: 700,
-    letterSpacing: '-0.3px',
+    flexDirection: 'column',
+    gap: '0px',
+    overflow: 'hidden',
+    flex: 1,
+    padding: '0',
   },
   tabs: {
-    padding: '0 32px',
+    padding: '0 24px',
     borderBottom: '1px solid var(--mica-stroke)',
-    background: 'var(--mica-layer-1)',
+    flexShrink: 0,
   },
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: '24px 32px',
+    padding: '20px 24px',
   },
   contentInner: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
-    maxWidth: '720px',
+    gap: '20px',
+    maxWidth: '640px',
     margin: '0 auto',
     width: '100%',
   },
   section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
-    padding: '24px',
+    gap: '12px',
+    padding: '20px',
     background: 'var(--mica-layer-1)',
     border: '1px solid var(--mica-stroke)',
-    borderRadius: '12px',
-    backdropFilter: 'blur(40px)',
+    borderRadius: '10px',
   },
   sectionTitle: {
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '1px',
@@ -79,23 +76,12 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: '8px',
   },
-  sectionIcon: {
-    width: '20px',
-    height: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '6px',
-    background: 'var(--mica-accent-secondary)',
-    color: 'var(--mica-accent)',
-    fontSize: '12px',
-  },
   settingRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '16px',
-    padding: '8px 0',
+    gap: '12px',
+    padding: '6px 0',
   },
   settingLabel: {
     display: 'flex',
@@ -104,32 +90,32 @@ const useStyles = makeStyles({
     flex: 1,
   },
   settingTitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 500,
     color: 'var(--mica-text-primary)',
   },
   settingDescription: {
-    fontSize: '12px',
+    fontSize: '11px',
     color: 'var(--mica-text-tertiary)',
   },
   settingControl: {
-    minWidth: '200px',
+    minWidth: '160px',
     display: 'flex',
     justifyContent: 'flex-end',
   },
   aboutHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
-    padding: '32px',
+    gap: '16px',
+    padding: '24px',
     background: 'linear-gradient(135deg, var(--mica-layer-2) 0%, var(--mica-layer-1) 100%)',
-    borderRadius: '12px',
+    borderRadius: '10px',
     border: '1px solid var(--mica-stroke)',
   },
   aboutLogo: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '20px',
+    width: '60px',
+    height: '60px',
+    borderRadius: '16px',
     background: 'linear-gradient(135deg, #60cdff 0%, #0099ff 100%)',
     display: 'flex',
     alignItems: 'center',
@@ -140,43 +126,42 @@ const useStyles = makeStyles({
   aboutLogoText: {
     color: '#1c1c1c',
     fontWeight: 800,
-    fontSize: '36px',
+    fontSize: '28px',
   },
   aboutInfo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '2px',
   },
   aboutTitle: {
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: 700,
-    letterSpacing: '-0.5px',
+    letterSpacing: '-0.3px',
   },
   aboutVersion: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: 'var(--mica-text-tertiary)',
     fontFamily: "'IBM Plex Mono', monospace",
   },
   aboutDescription: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--mica-text-secondary)',
-    lineHeight: 1.6,
-    marginTop: '8px',
+    lineHeight: 1.5,
+    marginTop: '6px',
   },
   aboutLinks: {
     display: 'flex',
-    gap: '12px',
-    marginTop: '16px',
+    gap: '8px',
+    marginTop: '12px',
   },
   aboutLink: {
-    padding: '8px 16px',
-    borderRadius: '8px',
+    padding: '6px 14px',
+    borderRadius: '6px',
     background: 'var(--mica-layer-2)',
     border: '1px solid var(--mica-stroke)',
     color: 'var(--mica-text-secondary)',
-    fontSize: '13px',
+    fontSize: '12px',
     textDecoration: 'none',
-    transition: 'all 0.2s ease',
     cursor: 'pointer',
     ':hover': {
       background: 'var(--mica-layer-3)',
@@ -189,30 +174,30 @@ const useStyles = makeStyles({
   },
   teamGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '12px',
-    marginTop: '8px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '8px',
+    marginTop: '6px',
   },
   teamCard: {
-    padding: '16px',
+    padding: '12px',
     background: 'var(--mica-layer-1)',
     border: '1px solid var(--mica-stroke)',
-    borderRadius: '10px',
+    borderRadius: '8px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '2px',
   },
   teamName: {
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 600,
     color: 'var(--mica-text-primary)',
   },
   teamRole: {
-    fontSize: '12px',
+    fontSize: '11px',
     color: 'var(--mica-text-tertiary)',
   },
   resetButton: {
-    marginTop: '8px',
+    marginTop: '4px',
   },
   dangerZone: {
     borderTopColor: 'rgba(255, 153, 164, 0.3)',
@@ -228,11 +213,15 @@ const useStyles = makeStyles({
 
 type TabValue = 'general' | 'editor' | 'export' | 'about';
 
-export function SettingsPage() {
+interface SettingsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const styles = useStyles();
   const [activeTab, setActiveTab] = useState<TabValue>('general');
-  
-  // UI Store
+
   const {
     theme, setTheme,
     fontSize, setFontSize,
@@ -257,10 +246,9 @@ export function SettingsPage() {
     <>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>🎨</span>
           Appearance
         </div>
-        
+
         <div className={styles.settingRow}>
           <div className={styles.settingLabel}>
             <span className={styles.settingTitle}>Theme</span>
@@ -269,7 +257,7 @@ export function SettingsPage() {
           <div className={styles.settingControl}>
             <RadioGroup
               value={theme}
-               onChange={(_e, data) => setTheme(data.value as 'light' | 'dark' | 'system')}
+              onChange={(_e, data) => setTheme(data.value as 'light' | 'dark' | 'system')}
               layout="horizontal"
             >
               <Radio value="light" label="Light" />
@@ -356,7 +344,6 @@ export function SettingsPage() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>⚙️</span>
           Application
         </div>
 
@@ -438,7 +425,6 @@ export function SettingsPage() {
     <>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>🎯</span>
           Visual Editor
         </div>
 
@@ -494,7 +480,6 @@ export function SettingsPage() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>📐</span>
           Default Card Size
         </div>
 
@@ -530,7 +515,6 @@ export function SettingsPage() {
     <>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>📤</span>
           Export Defaults
         </div>
 
@@ -608,29 +592,19 @@ export function SettingsPage() {
             Desktop IDE for designing game cards. Built with Tauri, React, and love for tabletop games.
           </div>
           <div className={styles.aboutLinks}>
-            <a 
-              href="https://github.com/yourusername/cardforge" 
-              target="_blank"
-              rel="noopener noreferrer"
+            <a
+              href="#"
               className={styles.aboutLink}
+              onClick={(e) => e.preventDefault()}
             >
               GitHub
             </a>
-            <a 
-              href="https://cardforge.dev/docs" 
-              target="_blank"
-              rel="noopener noreferrer"
+            <a
+              href="#"
               className={styles.aboutLink}
+              onClick={(e) => e.preventDefault()}
             >
               Documentation
-            </a>
-            <a 
-              href="https://cardforge.dev/showcase" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.aboutLink}
-            >
-              Showcase
             </a>
           </div>
         </div>
@@ -638,7 +612,6 @@ export function SettingsPage() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>📋</span>
           Credits
         </div>
 
@@ -672,22 +645,19 @@ export function SettingsPage() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>
-          <span className={styles.sectionIcon}>📄</span>
           License
         </div>
         <Text size={300} style={{ color: 'var(--mica-text-secondary)', lineHeight: 1.6 }}>
-          CardForge is open-source software licensed under the MIT License. 
-          You are free to use, modify, and distribute it. 
-          See the full license on GitHub.
+          CardForge is open-source software licensed under the MIT License.
+          You are free to use, modify, and distribute it.
         </Text>
       </div>
 
       <div className={`${styles.section} ${styles.dangerZone}`}>
         <div className={`${styles.sectionTitle} ${styles.dangerTitle}`}>
-          <span className={styles.sectionIcon} style={{ background: 'rgba(255, 153, 164, 0.15)', color: 'var(--mica-error)' }}>⚠️</span>
           Danger Zone
         </div>
-        
+
         <div className={styles.settingRow}>
           <div className={styles.settingLabel}>
             <span className={styles.settingTitle}>Reset All Settings</span>
@@ -713,31 +683,36 @@ export function SettingsPage() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <Text size={600} weight="semibold" className={styles.headerTitle}>Settings</Text>
-      </div>
-
-      <div className={styles.tabs}>
-        <TabList
-          selectedValue={activeTab}
-          onTabSelect={(_e, data) => setActiveTab(data.value as TabValue)}
+    <Dialog open={open} onOpenChange={(_e, data) => onOpenChange(data.open)}>
+      <DialogSurface className={styles.dialogSurface}>
+        <DialogTitle
+          action={<Button appearance="subtle" icon={<DismissRegular />} onClick={() => onOpenChange(false)} />}
+          style={{ fontSize: '18px', fontWeight: 700 }}
         >
-          <Tab value="general">General</Tab>
-          <Tab value="editor">Editor</Tab>
-          <Tab value="export">Export</Tab>
-          <Tab value="about">About</Tab>
-        </TabList>
-      </div>
-
-      <div className={styles.content}>
-        <div className={styles.contentInner}>
-          {activeTab === 'general' && renderGeneralSettings()}
-          {activeTab === 'editor' && renderEditorSettings()}
-          {activeTab === 'export' && renderExportSettings()}
-          {activeTab === 'about' && renderAbout()}
-        </div>
-      </div>
-    </div>
+          Settings
+        </DialogTitle>
+        <DialogBody className={styles.dialogBody}>
+          <div className={styles.tabs}>
+            <TabList
+              selectedValue={activeTab}
+              onTabSelect={(_e, data) => setActiveTab(data.value as TabValue)}
+            >
+              <Tab value="general">General</Tab>
+              <Tab value="editor">Editor</Tab>
+              <Tab value="export">Export</Tab>
+              <Tab value="about">About</Tab>
+            </TabList>
+          </div>
+          <div className={styles.content}>
+            <div className={styles.contentInner}>
+              {activeTab === 'general' && renderGeneralSettings()}
+              {activeTab === 'editor' && renderEditorSettings()}
+              {activeTab === 'export' && renderExportSettings()}
+              {activeTab === 'about' && renderAbout()}
+            </div>
+          </div>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   );
 }

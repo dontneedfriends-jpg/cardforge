@@ -1,6 +1,7 @@
 import type { Column } from '../../shared/types/project';
+import type { Monaco } from '@monaco-editor/react';
 
-export function registerHandlebarsCompletions(monaco: any, columns: Column[]) {
+export function registerHandlebarsCompletions(monaco: Monaco, columns: Column[]) {
   if (!monaco.languages?.registerCompletionItemProvider) return;
 
   const suggestions = columns.map(col => ({
@@ -18,7 +19,7 @@ export function registerHandlebarsCompletions(monaco: any, columns: Column[]) {
 
   const dispose = monaco.languages.registerCompletionItemProvider('html', {
     triggerCharacters: ['{', '{', '.'],
-    provideCompletionItems: (model: any, position: any) => {
+    provideCompletionItems: (model: Monaco['editor']['ITextModel'], position: Monaco['Position']) => {
       const word = model.getWordUntilPosition(position);
       return {
         suggestions: suggestions.map(s => ({

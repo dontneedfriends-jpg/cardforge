@@ -1,9 +1,10 @@
 import { Text, Button, makeStyles, Dialog, DialogSurface, DialogTitle, DialogBody, DialogActions, DialogContent, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem, MessageBar, MessageBarBody, Input, Breadcrumb, BreadcrumbItem } from '@fluentui/react-components';
-import { ImageRegular, DeleteRegular, CopyRegular, OpenRegular, FolderRegular, ArrowUploadRegular, FolderOpenRegular, AddRegular } from '@fluentui/react-icons';
+import { ImageRegular, DeleteRegular, CopyRegular, OpenRegular, FolderRegular, ArrowUploadRegular, FolderOpenRegular, AddRegular, WandRegular } from '@fluentui/react-icons';
 import { useProjectStore } from '../../store';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { AssetGeneratorDialog } from '../asset-generator';
 
 const useStyles = makeStyles({
   container: {
@@ -198,6 +199,7 @@ export function AssetManager() {
   const [deleteTarget, setDeleteTarget] = useState<AssetEntry | null>(null);
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [generatorDialog, setGeneratorDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAssets = useCallback(async () => {
@@ -218,7 +220,7 @@ export function AssetManager() {
       // Ensure the assets directory exists first
       try {
         await invoke('create_asset_folder', { projectPath, folderPath: 'assets' });
-      } catch (_) {}
+      } catch { /* папка уже существует — это нормально */ }
       await loadAssets();
     }
     init();
@@ -285,7 +287,7 @@ export function AssetManager() {
       
       for (const file of files) {
         try {
-          console.log('[Import] Importing to folder:', currentFolder);
+          // [Import] Importing to folder handled by Tauri
           await invoke('import_asset', { 
             projectPath, 
             sourcePath: file,
@@ -378,6 +380,14 @@ export function AssetManager() {
             appearance="subtle"
           >
             New Folder
+          </Button>
+          <Button
+            icon={<WandRegular />}
+            size="small"
+            onClick={() => setGeneratorDialog(true)}
+            appearance="subtle"
+          >
+            Generate
           </Button>
           <Button 
             icon={<ArrowUploadRegular />} 
@@ -504,7 +514,7 @@ export function AssetManager() {
                         Copy relative path
                       </MenuItem>
                       {!asset.isFolder && (
-                        <MenuItem icon={<OpenRegular />} onClick={() => invoke('open_asset_externally', { assetPath: asset.path }).catch(() => {})}>
+                        <MenuItem icon={<OpenRegular />} onClick={() => invoke('open_asset_externally', { assetPath: asset.path }).catch((e) => console.warn('[Assets] Failed to open externally:', e))}>
                           Open externally
                         </MenuItem>
                       )}
@@ -520,6 +530,7 @@ export function AssetManager() {
         </div>
       </div>
 
+      <AssetGeneratorDialog open={generatorDialog} onOpenChange={setGeneratorDialog} onSaved={loadAssets} />
       <Dialog open={newFolderDialog} onOpenChange={() => setNewFolderDialog(false)}>
         <DialogSurface>
           <DialogBody>

@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { CardSize, CardBackDesign } from '../../shared/types/project';
 import { injectFontCss } from '../../shared/utils/fontUtils';
+import { mmToPx } from '../../theme';
 
 export interface ExportOptions {
   dpi: number;
@@ -15,10 +16,6 @@ const PAGE_DIMS: Record<string, { w: number; h: number }> = {
   A4: { w: 210, h: 297 },
   Letter: { w: 215.9, h: 279.4 },
 };
-
-function mmToPx(mm: number, dpi: number): number {
-  return Math.round((mm / 25.4) * dpi);
-}
 
 export async function generatePrintHtml(
   cardBodies: { body: string; css: string }[],
@@ -189,22 +186,7 @@ export async function exportAllCardsAsPng(
   await invoke('export_png_batch', { outputDir: dir, images: images.map(b => Array.from(b)), names });
 }
 
-function getPatternCss(pattern: string, color: string, opacity: number): string {
-  const c = color.replace(/[\d.]+\)$/, `${opacity})`);
-  switch (pattern) {
-    case 'stripes':
-      return `repeating-linear-gradient(45deg, transparent, transparent 10px, ${c} 10px, ${c} 11px)`;
-    case 'dots':
-      return `radial-gradient(${c} 1px, transparent 1px) 0 0 / 20px 20px`;
-    case 'crosshatch':
-      return [
-        `repeating-linear-gradient(45deg, transparent, transparent 8px, ${c} 8px, ${c} 9px)`,
-        `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${c} 8px, ${c} 9px)`,
-      ].join(', ');
-    default:
-      return 'none';
-  }
-}
+import { getPatternCss } from '../../shared/utils/patternCss';
 
 export function renderCardBackBody(
   design: CardBackDesign,

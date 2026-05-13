@@ -37,6 +37,8 @@ export const CARD_SIZE_PRESETS: CardSizePreset[] = [
   { id: 'a5', name: 'A5 (Half Letter)', widthMm: 148, heightMm: 210, bleedMm: 5, note: 'half A4' },
 ];
 
+export const DEFAULT_CARD_SIZE = { widthMm: 63, heightMm: 88, bleedMm: 3 };
+
 export function findPreset(widthMm: number, heightMm: number): CardSizePreset | undefined {
   return CARD_SIZE_PRESETS.find(
     p => Math.abs(p.widthMm - widthMm) < 0.5 && Math.abs(p.heightMm - heightMm) < 0.5

@@ -9,20 +9,23 @@ import {
   AddRegular,
   DocumentRegular,
   PaintBrushRegular,
+  HatGraduationRegular,
+  SaveRegular,
+  DeleteRegular,
+  OpenRegular,
+  DocumentAddRegular,
+  RenameRegular,
   type FluentIcon,
 } from '@fluentui/react-icons';
 import { makeStyles, mergeClasses, Text } from '@fluentui/react-components';
 import { useUiStore, useProjectStore, useDeckStore, useEditorStore } from '../../store';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { cardTemplates } from '../../shared/templates/cardTemplates';
-import {
-  Dialog,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  Button,
-} from '@fluentui/react-components';
+import { open } from '@tauri-apps/plugin-dialog';
+import { DEFAULT_CARD_SIZE } from '../cardSizes';
+import type { DeckMeta } from '../../shared/types/project';
+import { TemplateWizardDialog } from '../../features/template-wizard/TemplateWizardDialog';
+import { SettingsDialog } from '../../features/settings/SettingsDialog';
 
 interface NavItem {
   icon: FluentIcon;
@@ -402,6 +405,163 @@ const useStyles = makeStyles({
       color: 'var(--mica-base-active)',
     },
   },
+  logoWrapper: {
+    position: 'relative',
+  },
+  logoButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '0 16px 20px',
+    marginBottom: '8px',
+    borderBottom: '1px solid var(--mica-stroke)',
+    cursor: 'pointer',
+    background: 'none',
+    borderTop: 'none',
+    borderRight: 'none',
+    borderLeft: 'none',
+    width: '100%',
+    textAlign: 'left',
+    fontFamily: "'IBM Plex Sans', sans-serif",
+  },
+  fileMenu: {
+    position: 'fixed',
+    top: '12px',
+    left: '248px',
+    width: '220px',
+    background: 'var(--mica-layer-2)',
+    borderTopWidth: '1px',
+    borderRightWidth: '1px',
+    borderBottomWidth: '1px',
+    borderLeftWidth: '1px',
+    borderTopStyle: 'solid',
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderLeftStyle: 'solid',
+    borderTopColor: 'var(--mica-stroke)',
+    borderRightColor: 'var(--mica-stroke)',
+    borderBottomColor: 'var(--mica-stroke)',
+    borderLeftColor: 'var(--mica-stroke)',
+    backdropFilter: 'blur(60px)',
+    WebkitBackdropFilter: 'blur(60px)',
+    zIndex: 100,
+    borderRadius: '8px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+    overflow: 'hidden',
+    padding: '4px 0',
+  },
+  fileMenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '9px 14px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    color: 'var(--mica-text-primary)',
+    transition: 'background 0.15s',
+    border: 'none',
+    background: 'transparent',
+    width: '100%',
+    textAlign: 'left',
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    ':hover': {
+      background: 'var(--mica-layer-3)',
+    },
+  },
+  fileMenuSeparator: {
+    height: '1px',
+    background: 'var(--mica-stroke)',
+    margin: '4px 0',
+  },
+  fileMenuSection: {
+    padding: '6px 14px 4px',
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    color: 'var(--mica-text-tertiary)',
+    fontFamily: "'IBM Plex Sans', sans-serif",
+  },
+  contextMenu: {
+    position: 'fixed',
+    width: '160px',
+    background: 'var(--mica-layer-2)',
+    borderTopWidth: '1px',
+    borderRightWidth: '1px',
+    borderBottomWidth: '1px',
+    borderLeftWidth: '1px',
+    borderTopStyle: 'solid',
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderLeftStyle: 'solid',
+    borderTopColor: 'var(--mica-stroke)',
+    borderRightColor: 'var(--mica-stroke)',
+    borderBottomColor: 'var(--mica-stroke)',
+    borderLeftColor: 'var(--mica-stroke)',
+    borderRadius: '8px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+    backdropFilter: 'blur(60px)',
+    WebkitBackdropFilter: 'blur(60px)',
+    zIndex: 200,
+    overflow: 'hidden',
+    padding: '4px 0',
+  },
+  contextMenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 14px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: 'var(--mica-text-primary)',
+    border: 'none',
+    background: 'transparent',
+    width: '100%',
+    textAlign: 'left',
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    ':hover': {
+      background: 'var(--mica-layer-3)',
+    },
+  },
+  contextMenuDanger: {
+    color: '#e74c3c',
+    ':hover': {
+      background: 'rgba(231, 76, 60, 0.1)',
+    },
+  },
+  renameInput: {
+    width: '100%',
+    padding: '4px 6px',
+    fontSize: '12px',
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    borderTopWidth: '1px',
+    borderRightWidth: '1px',
+    borderBottomWidth: '1px',
+    borderLeftWidth: '1px',
+    borderTopColor: 'var(--mica-accent)',
+    borderRightColor: 'var(--mica-accent)',
+    borderBottomColor: 'var(--mica-accent)',
+    borderLeftColor: 'var(--mica-accent)',
+    borderTopStyle: 'solid',
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderLeftStyle: 'solid',
+    borderRadius: '4px',
+    outline: 'none',
+    background: 'var(--mica-layer-1)',
+    color: 'var(--mica-text-primary)',
+    boxSizing: 'border-box',
+  },
+  saveBtn: {
+    color: 'var(--mica-accent)',
+    fontWeight: 600,
+    marginBottom: '4px',
+    ':hover': {
+      background: 'var(--mica-accent-secondary)',
+      color: 'var(--mica-accent)',
+    },
+  },
 });
 
 export function NavRail() {
@@ -413,19 +573,64 @@ export function NavRail() {
   
   const manifest = useProjectStore((s) => s.manifest);
   const projectPath = useProjectStore((s) => s.projectPath);
+  const recentProjects = useProjectStore((s) => s.recentProjects);
   const activeDeckId = useDeckStore((s) => s.activeDeckId);
   const setActiveDeck = useDeckStore((s) => s.setActiveDeck);
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
   const loadData = useDeckStore((s) => s.loadData);
   const loadCardBack = useEditorStore((s) => s.loadCardBack);
   const addDeck = useProjectStore((s) => s.addDeck);
+  const removeDeck = useProjectStore((s) => s.removeDeck);
+  const renameDeck = useProjectStore((s) => s.renameDeck);
+  const openProject = useProjectStore((s) => s.openProject);
+  const createProject = useProjectStore((s) => s.createProject);
+  const saveManifest = useProjectStore((s) => s.saveManifest);
+
+  const [isWizardDialogOpen, setIsWizardDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ deckId: string; x: number; y: number } | null>(null);
+  const [renamingDeckId, setRenamingDeckId] = useState<string | null>(null);
+  const renamingDeckRef = useRef(renamingDeckId);
+  renamingDeckRef.current = renamingDeckId;
+  const [renameValue, setRenameValue] = useState('');
+  const renameValueRef = useRef(renameValue);
+  renameValueRef.current = renameValue;
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const logoButtonRef = useRef<HTMLButtonElement>(null);
   
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (logoButtonRef.current?.contains(e.target as Node)) return;
+      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
+        setFileMenuOpen(false);
+      }
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFileMenuOpen(false);
+        setContextMenu(null);
+        setRenamingDeckId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [contextMenu]);
+
   const handleNavClick = useCallback((item: NavItem) => {
     setSidebarTab(item.tab);
     navigate({ to: item.route });
   }, [setSidebarTab, navigate]);
 
-  const handleSelectDeck = useCallback(async (deck: any) => {
+  const handleSelectDeck = useCallback(async (deck: DeckMeta) => {
     if (!projectPath) return;
     setActiveDeck(deck.id);
     const fullPath = `${projectPath}/${deck.path}`;
@@ -436,17 +641,25 @@ export function NavRail() {
     navigate({ to: '/editor' });
   }, [projectPath, setActiveDeck, loadTemplate, loadData, loadCardBack, setSidebarTab, navigate]);
 
-  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<typeof cardTemplates[0] | null>(null);
-  const [deckName, setDeckName] = useState('');
+  const handleSaveAll = useCallback(async () => {
+    if (!projectPath) return;
+    try {
+      await useEditorStore.getState().saveTemplate();
+      await useDeckStore.getState().saveData();
+      await useEditorStore.getState().saveCardBack();
+      await saveManifest();
+    } catch (e) {
+      console.error('Save All failed:', e);
+    }
+  }, [projectPath, saveManifest]);
 
   const handleQuickCreateDeck = useCallback(async () => {
     if (!projectPath) return;
     const name = `Deck ${(manifest?.decks.length || 0) + 1}`;
-    addDeck(name, { widthMm: 63, heightMm: 88, bleedMm: 3 });
+    await addDeck(name, DEFAULT_CARD_SIZE);
     
     const updatedManifest = useProjectStore.getState().manifest;
-    const newDeck = updatedManifest?.decks.find((d: any) => d.name === name);
+    const newDeck = updatedManifest?.decks.find((d: DeckMeta) => d.name === name);
     
     if (newDeck) {
       const deckPath = `${projectPath}/${newDeck.path}`;
@@ -463,66 +676,124 @@ export function NavRail() {
     }
   }, [projectPath, manifest, addDeck, handleSelectDeck]);
 
-  const handleOpenTemplateDialog = useCallback(() => {
-    if (!projectPath) return;
-    setDeckName(`Deck ${(manifest?.decks.length || 0) + 1}`);
-    setSelectedTemplate(null);
-    setIsTemplateDialogOpen(true);
-  }, [projectPath, manifest]);
-
-  const handleConfirmCreateDeck = useCallback(async () => {
-    if (!projectPath || !deckName.trim()) return;
-    
-    const template = selectedTemplate || cardTemplates[0];
-    addDeck(deckName, template.cardSize);
-    
-    const updatedManifest = useProjectStore.getState().manifest;
-    const newDeck = updatedManifest?.decks.find((d: any) => d.name === deckName);
-    
-    if (newDeck) {
-      const deckPath = `${projectPath}/${newDeck.path}`;
-      try {
-        await invoke('write_template', { 
-          deckPath, 
-          html: template.html, 
-          css: template.css 
-        });
-        
-        // Create CSV with sample data
-        if (template.sampleData.length > 0) {
-          const headers = Object.keys(template.sampleData[0]);
-          const csvContent = [
-            headers.join(','),
-            ...template.sampleData.map(row => 
-              headers.map(h => `"${(row[h] || '').replace(/"/g, '""')}"`).join(',')
-            )
-          ].join('\n');
-          
-          await invoke('write_csv_content', { 
-            path: `${deckPath}/cards.csv`, 
-            content: csvContent 
-          });
-        }
-        
-        await handleSelectDeck(newDeck);
-      } catch (e) {
-        console.error('Failed to create deck:', e);
-      }
+  const handleDeleteDeck = useCallback(async (deckId: string) => {
+    setContextMenu(null);
+    await removeDeck(deckId);
+    if (activeDeckId === deckId) {
+      setActiveDeck('');
     }
-    
-    setIsTemplateDialogOpen(false);
-  }, [projectPath, deckName, selectedTemplate, addDeck, handleSelectDeck]);
+  }, [removeDeck, activeDeckId, setActiveDeck]);
+
+  const handleStartRename = useCallback((deckId: string) => {
+    setContextMenu(null);
+    const deck = manifest?.decks.find(d => d.id === deckId);
+    if (deck) {
+      setRenamingDeckId(deckId);
+      setRenameValue(deck.name);
+      setTimeout(() => renameInputRef.current?.focus(), 50);
+    }
+  }, [manifest]);
+
+  const handleFinishRename = useCallback(async () => {
+    const id = renamingDeckRef.current;
+    const val = renameValueRef.current ? renameValueRef.current.trim() : '';
+    if (id && val) {
+      await renameDeck(id, val);
+    }
+    setRenamingDeckId(null);
+    setRenameValue('');
+  }, [renameDeck]);
+
+  const handleFileNewProject = useCallback(async () => {
+    setFileMenuOpen(false);
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (selected) {
+        const name = selected.split(/[\\/]/).filter(Boolean).pop() || 'Untitled';
+        await createProject(selected, name);
+        navigate({ to: '/editor' });
+      }
+    } catch (e) {
+      console.error('Failed to create project:', e);
+    }
+  }, [createProject, navigate]);
+
+  const handleFileOpenProject = useCallback(async () => {
+    setFileMenuOpen(false);
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (selected) {
+        await openProject(selected);
+        navigate({ to: '/editor' });
+      }
+    } catch (e) {
+      console.error('Failed to open project:', e);
+    }
+  }, [openProject, navigate]);
+
+  const handleFileOpenRecent = useCallback(async (path: string) => {
+    setFileMenuOpen(false);
+    try {
+      await openProject(path);
+      navigate({ to: '/editor' });
+    } catch (e) {
+      console.error('Failed to open recent project:', e);
+    }
+  }, [openProject, navigate]);
+
+  const handleFileSettings = useCallback(() => {
+    setFileMenuOpen(false);
+    setSettingsDialogOpen(true);
+  }, []);
 
   const mainNavItems = navItems.slice(0, 5);
   const bottomNavItems = navItems.slice(5);
 
   return (
     <nav className={styles.nav}>
-      <div className={styles.logo}>
-        <div className={styles.logoIcon}>
-          <span className={styles.logoText}>C</span>
-        </div>
-        <span className={styles.logoTitle}>CardForge</span>
+      <div className={styles.logoWrapper}>
+        <button ref={logoButtonRef} className={styles.logoButton} onClick={() => setFileMenuOpen((v) => !v)}>
+          <div className={styles.logoIcon}>
+            <span className={styles.logoText}>C</span>
+          </div>
+          <span className={styles.logoTitle}>CardForge</span>
+        </button>
+        
+        {fileMenuOpen && (
+          <div ref={fileMenuRef} className={styles.fileMenu}>
+            <button className={styles.fileMenuItem} onClick={handleFileNewProject}>
+              <DocumentAddRegular fontSize={16} />
+              <span>New Project</span>
+            </button>
+            <button className={styles.fileMenuItem} onClick={handleFileOpenProject}>
+              <OpenRegular fontSize={16} />
+              <span>Open Project</span>
+            </button>
+            
+            {recentProjects.length > 0 && (
+              <>
+                <div className={styles.fileMenuSeparator} />
+                <div className={styles.fileMenuSection}>Recent</div>
+                {recentProjects.slice(0, 5).map((p) => (
+                  <button key={p.path} className={styles.fileMenuItem} onClick={() => handleFileOpenRecent(p.path)}>
+                    <DocumentRegular fontSize={16} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
+            
+            <div className={styles.fileMenuSeparator} />
+            <button className={styles.fileMenuItem} onClick={handleSaveAll}>
+              <SaveRegular fontSize={16} />
+              <span>Save All</span>
+            </button>
+            <button className={styles.fileMenuItem} onClick={handleFileSettings}>
+              <SettingsRegular fontSize={16} />
+              <span>Settings</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={styles.navItems}>
@@ -558,12 +829,12 @@ export function NavRail() {
             <span>Add</span>
           </button>
           <button
-            onClick={handleOpenTemplateDialog}
+            onClick={() => setIsWizardDialogOpen(true)}
             className={styles.templateBtn}
-            title="Create from template"
+            title="Template Wizard — step by step"
           >
-            <PaintBrushRegular fontSize={14} />
-            <span>Template</span>
+            <HatGraduationRegular fontSize={14} />
+            <span>Wizard</span>
           </button>
         </div>
       )}
@@ -576,25 +847,75 @@ export function NavRail() {
         ) : (
           <>
             {manifest?.decks.map((deck) => (
-              <button
-                key={deck.id}
-                onClick={() => handleSelectDeck(deck)}
-                className={mergeClasses(
-                  styles.deckItem,
-                  activeDeckId === deck.id && styles.deckActive
+              <div key={deck.id} style={{ position: 'relative' }}>
+                {renamingDeckId === deck.id ? (
+                  <input
+                    ref={renameInputRef}
+                    className={styles.renameInput}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={handleFinishRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleFinishRename();
+                      if (e.key === 'Escape') {
+                        setRenamingDeckId(null);
+                        setRenameValue('');
+                      }
+                    }}
+                    style={{ margin: '4px 0' }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => handleSelectDeck(deck)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({ deckId: deck.id, x: e.clientX, y: e.clientY });
+                    }}
+                    className={mergeClasses(
+                      styles.deckItem,
+                      activeDeckId === deck.id && styles.deckActive
+                    )}
+                  >
+                    <DocumentRegular fontSize={14} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {deck.name}
+                    </span>
+                  </button>
                 )}
-              >
-                <DocumentRegular fontSize={14} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {deck.name}
-                </span>
-              </button>
+              </div>
             ))}
           </>
         )}
       </div>
 
+      {contextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(e) => { e.preventDefault(); }}
+        >
+          <button className={styles.contextMenuItem} onClick={() => handleStartRename(contextMenu.deckId)}>
+            <RenameRegular fontSize={14} />
+            <span>Rename</span>
+          </button>
+          <button
+            className={mergeClasses(styles.contextMenuItem, styles.contextMenuDanger)}
+            onClick={() => handleDeleteDeck(contextMenu.deckId)}
+          >
+            <DeleteRegular fontSize={14} />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+
       <div className={styles.bottomSection}>
+        <button
+          onClick={handleSaveAll}
+          className={mergeClasses(styles.link, styles.saveBtn)}
+        >
+          <SaveRegular fontSize={18} />
+          <span>Save All</span>
+        </button>
         {bottomNavItems.map((item) => {
           const isActive = item.route === '/editor'
             ? sidebarTab === item.tab
@@ -603,7 +924,13 @@ export function NavRail() {
           return (
             <button
               key={item.label}
-              onClick={() => handleNavClick(item)}
+              onClick={() => {
+                if (item.tab === 'settings') {
+                  setSettingsDialogOpen(true);
+                } else {
+                  handleNavClick(item);
+                }
+              }}
               className={mergeClasses(styles.link, isActive && styles.linkActive)}
             >
               <item.icon fontSize={18} />
@@ -614,68 +941,8 @@ export function NavRail() {
         })}
       </div>
 
-      {/* Template Selection Dialog */}
-      <Dialog open={isTemplateDialogOpen} onOpenChange={(_e, data) => setIsTemplateDialogOpen(data.open)}>
-        <DialogSurface className={styles.dialogSurface}>
-          <DialogTitle style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>
-            Create New Deck
-          </DialogTitle>
-          <DialogBody className={styles.dialogBody}>
-            <div>
-              <label className={styles.sectionLabel} style={{ marginBottom: '8px', display: 'block' }}>
-                Deck Name
-              </label>
-              <input
-                type="text"
-                value={deckName}
-                onChange={(e) => setDeckName(e.target.value)}
-                className={styles.nameInput}
-                placeholder="Enter deck name"
-                autoFocus
-              />
-            </div>
-            
-            <div>
-              <label className={styles.sectionLabel} style={{ marginBottom: '10px', display: 'block' }}>
-                Choose Template
-              </label>
-              <div className={styles.dialogContent}>
-                <div className={styles.templateGrid}>
-                  {cardTemplates.map((template) => (
-                    <div
-                      key={template.id}
-                      className={mergeClasses(
-                        styles.templateCard,
-                        selectedTemplate?.id === template.id && styles.templateCardSelected
-                      )}
-                      onClick={() => setSelectedTemplate(template)}
-                    >
-                      <div className={styles.templateName}>{template.name}</div>
-                      <div className={styles.templateDesc}>{template.description}</div>
-                      <div className={styles.templateSize}>
-                        {template.cardSize.widthMm}×{template.cardSize.heightMm}mm
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </DialogBody>
-          <div className={styles.dialogActions}>
-            <Button appearance="secondary" onClick={() => setIsTemplateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              appearance="primary" 
-              onClick={handleConfirmCreateDeck} 
-              disabled={!deckName.trim()}
-              style={{ minWidth: '120px' }}
-            >
-              Create Deck
-            </Button>
-          </div>
-        </DialogSurface>
-      </Dialog>
+      <TemplateWizardDialog open={isWizardDialogOpen} onOpenChange={setIsWizardDialogOpen} />
+      <SettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />
     </nav>
   );
 }

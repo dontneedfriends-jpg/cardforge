@@ -1,11 +1,11 @@
 import type { DeckData, DeckMeta, Column, CellValue, ColumnType } from '../shared/types/project';
 import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
-import { useProjectStore } from './projectStore';
 
 interface DeckStoreState {
   activeDeckId: string | null;
   deckData: DeckData | null;
+  currentDeckPath: string | null;
   isDirty: boolean;
 }
 
@@ -25,6 +25,7 @@ type DeckStore = DeckStoreState & DeckStoreActions;
 export const useDeckStore = create<DeckStore>()((set, get) => ({
   activeDeckId: null,
   deckData: null,
+  currentDeckPath: null,
   isDirty: false,
 
   setActiveDeck: async (id: string) => {
@@ -32,11 +33,15 @@ export const useDeckStore = create<DeckStore>()((set, get) => ({
   },
 
   loadData: async (deckPath: string, meta: DeckMeta) => {
-    const rows = await invoke<Record<string, CellValue>[]>('read_csv', { path: `${deckPath}/cards.csv` });
-    const columns: Column[] = rows.length > 0
-      ? Object.keys(rows[0]).map(key => ({ id: key, name: key, type: 'text' as ColumnType }))
-      : [];
-    set({ deckData: { meta, columns, rows }, isDirty: false });
+    try {
+      const rows = await invoke<Record<string, CellValue>[]>('read_csv', { path: `${deckPath}/cards.csv` });
+      const columns: Column[] = rows.length > 0
+        ? Object.keys(rows[0]).map(key => ({ id: key, name: key, type: 'text' as ColumnType }))
+        : [];
+      set({ deckData: { meta, columns, rows }, currentDeckPath: deckPath, isDirty: false });
+    } catch {
+      set({ deckData: { meta, columns: [], rows: [] }, currentDeckPath: deckPath, isDirty: false });
+    }
   },
 
   addRow: () => {
@@ -99,10 +104,8 @@ export const useDeckStore = create<DeckStore>()((set, get) => ({
   },
 
   saveData: async () => {
-    const { deckData } = get();
-    if (!deckData) return;
-    const projectPath = useProjectStore.getState().projectPath;
-    if (!projectPath) return;
+    const { deckData, currentDeckPath } = get();
+    if (!deckData || !currentDeckPath) return;
     const rows = deckData.rows.map((row) => {
       const plain: Record<string, string> = {};
       deckData.columns.forEach((col) => {
@@ -110,8 +113,7 @@ export const useDeckStore = create<DeckStore>()((set, get) => ({
       });
       return plain;
     });
-    const fullPath = `${projectPath}/${deckData.meta.path}`;
-    await invoke('write_csv', { path: `${fullPath}/cards.csv`, rows });
+    await invoke('write_csv', { path: `${currentDeckPath}/cards.csv`, rows });
     set({ isDirty: false });
   },
 }));

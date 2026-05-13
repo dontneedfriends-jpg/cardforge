@@ -7,10 +7,14 @@ export async function getFontFaceCss(projectPath: string): Promise<string> {
   if (cachedFontCss !== null && cachedProjectPath === projectPath) {
     return cachedFontCss;
   }
-  const css = await invoke<string>('get_font_face_css', { projectPath });
-  cachedFontCss = css;
-  cachedProjectPath = projectPath;
-  return css;
+  try {
+    const css = await invoke<string>('get_font_face_css', { projectPath });
+    cachedFontCss = css;
+    cachedProjectPath = projectPath;
+    return css;
+  } catch {
+    return '';
+  }
 }
 
 export function clearFontCache(): void {

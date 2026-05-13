@@ -232,7 +232,7 @@ export function DataEditor() {
             </tr>
           </thead>
           <tbody>
-            {deckData.rows.map((row: Record<string, any>, rowIdx: number) => (
+            {deckData.rows.map((row: Record<string, CellValue>, rowIdx: number) => (
               <tr key={rowIdx}>
                 <td className={styles.td}>{rowIdx + 1}</td>
                 {deckData.columns.map((col: Column) => (
