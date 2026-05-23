@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "content": "Windows/PowerShell environment knowledge:\n- Use PowerShell cmdlets NOT bash: Get-ChildItem (ls/dir), Select-String (grep), Get-Content (cat/type), Remove-Item (rm/del), New-Item (touch/mkdir), Set-Content/Out-File (write/redirect).\n- Separate commands with ; (semicolon) NOT && or ||. Each command runs independently.\n- For recursive search: Get-ChildItem -Recurse | Select-String \"pattern\".\n- For recursive listing: Get-ChildItem -Recurse -File -Name or Get-ChildItem -Recurse -Directory.\n- PATH separator is ; not :. Environment variables: $env:VAR or [Environment]::GetEnvironmentVariable('VAR').\n- Check exit code: $LASTEXITCODE (external commands) or $? (cmdlet success). $? is True/False.\n- JSON: ConvertFrom-Json/ConvertTo-Json (not jq). CSV: Import-Csv/Export-Csv.\n- npm/npx work normally from PowerShell. Use npm.cmd or npx.cmd if \"not recognized\".\n- Avoid: grep, sed, awk, jq, tree, chmod, xargs, bash -c, >/dev/null, 2>&1, &&, ||. Rewrite using cmdlets.\n- Path separator is \\ (backslash) but / also works in PowerShell. Join-Path for safe concatenation.\n- Delete recursively: Remove-Item -Recurse -Force. Careful with -Force — can't undo.\n- Git works identically. Docker: use docker.exe (not docker) if path issues.",
+      "type": "finding",
+      "tags": [
+        "platform",
+        "windows",
+        "powershell",
+        "cheatsheet"
+      ],
+      "timestamp": 1779552587749,
+      "metadata": {},
+      "id": "mem_1779552587749_1",
+      "frequency": 1,
+      "lastAccessed": 1779552587749,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Common PowerShell patterns:\n- Find \"text\" in all .ts files: Get-ChildItem -Recurse -Filter *.ts | Select-String \"text\"\n- List all directories recursively: Get-ChildItem -Recurse -Directory -Name\n- List recent files: Get-ChildItem -Recurse -File | Sort-Object LastWriteTime -Descending | Select-Object -First 10\n- Read file content: Get-Content path/to/file.ts\n- Read first 50 lines: Get-Content file.ts -Head 50\n- Read last 50 lines: Get-Content file.ts -Tail 50\n- Count lines: (Get-Content file.ts).Count\n- Test if path exists: Test-Path path/to/dir\n- Create directory: New-Item -ItemType Directory -Path newfolder\n- Get file size: (Get-Item file.ts).Length\n- List environment: Get-ChildItem env:\n- Check if command exists: Get-Command node -ErrorAction SilentlyContinue\n- Run npm install: npm install (from any directory — npm works cross-platform)",
+      "type": "finding",
+      "tags": [
+        "platform",
+        "windows",
+        "powershell",
+        "patterns",
+        "cheatsheet"
+      ],
+      "timestamp": 1779552587751,
+      "metadata": {},
+      "id": "mem_1779552587751_2",
+      "frequency": 1,
+      "lastAccessed": 1779552587751,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    }
+  ],
+  "wings": [],
+  "rooms": []
+}
