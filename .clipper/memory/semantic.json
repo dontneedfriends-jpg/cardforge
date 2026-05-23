@@ -178,6 +178,42 @@
       "wing": "default",
       "room": "default",
       "drawer": "memory"
+    },
+    {
+      "content": "Successful shell command: Get-ChildItem -Path src -Recurse -Name\nOutput summary: assets\r\nfeatures\r\nshared\r\nstore\r\ntheme\r\nApp.css\r\nApp.tsx\r\nmain.tsx\r\nrouter.tsx\r\nvite-env.d.ts\r\nassets\\react.svg\r\nfeatures\\asset-generator\r\nfeatures\\assets\r\nfeatures\\data-editor\r\nfeatures\\export\r\nfeatures\\overview\r\nfeatures\\preview\r\nfeatures\\project\r\nfeatures\\settings\r\nfeatures\\simulator\r\nfeatures\\te",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "success",
+        "auto"
+      ],
+      "timestamp": 1779552635428,
+      "metadata": {},
+      "id": "mem_1779552635428_11",
+      "frequency": 1,
+      "lastAccessed": 1779552635428,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Full output of shell \"Get-ChildItem -Path src -Recurse -Name\":\nassets\r\nfeatures\r\nshared\r\nstore\r\ntheme\r\nApp.css\r\nApp.tsx\r\nmain.tsx\r\nrouter.tsx\r\nvite-env.d.ts\r\nassets\\react.svg\r\nfeatures\\asset-generator\r\nfeatures\\assets\r\nfeatures\\data-editor\r\nfeatures\\export\r\nfeatures\\overview\r\nfeatures\\preview\r\nfeatures\\project\r\nfeatures\\settings\r\nfeatures\\simulator\r\nfeatures\\template-editor\r\nfeatures\\template-wizard\r\nfeatures\\welcome\r\nfeatures\\asset-generator\\generators\r\nfeatures\\asset-generator\\AssetGeneratorDialog.tsx\r\nfeatures\\asset-generator\\index.ts\r\nfeatures\\asset-generator\\generators\\cardBackgroundGenerator.ts\r\nfeatures\\asset-generator\\generators\\cardSymbolGenerator.ts\r\nfeatures\\asset-generator\\generators\\cardTextboxGenerator.ts\r\nfeatures\\asset-generator\\generators\\colorGenerator.ts\r\nfeatures\\asset-generator\\generators\\index.ts\r\nfeatures\\assets\\AssetManager.tsx\r\nfeatures\\assets\\AssetPickerDialog.tsx\r\nfeatures\\data-editor\\DataEditor.tsx\r\nfeatures\\export\\ExportPage.tsx\r\nfeatures\\export\\exportUtils.ts\r\nfeatures\\overview\\OverviewPage.tsx\r\nfeatures\\preview\\CardRenderer.ts\r\nfeatures\\preview\\PreviewPanel.tsx\r\nfeatures\\project\\ProjectSidebar.tsx\r\nfeatures\\settings\\SettingsDialog.tsx\r\nfeatures\\settings\\SettingsPage.tsx\r\nfeatures\\simulator\\CardTable.tsx\r\nfeatures\\simulator\\ContextMenu.tsx\r\nfeatures\\simulator\\DeckZone.tsx\r\nfeatures\\simulator\\SimulatorPage.tsx\r\nfeatures\\simulator\\simulatorStore.ts\r\nfeatures\\template-editor\\wysiwyg\r\nfeatures\\template-editor\\CardBackCodeEditor.tsx\r\nfeatures\\template-editor\\CardBackEditor.tsx\r\nfeatures\\template-editor\\CodeEditor.tsx\r\nfeatures\\template-editor\\HandlebarsHelper.ts\r\nfeatures\\template-editor\\TemplateEditor.tsx\r\nfeatures\\template-editor\\VisualEditor.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\r\nfeatures\\template-editor\\wysiwyg\\Canvas.tsx\r\nfeatures\\template-editor\\wysiwyg\\ElementPanel.tsx\r\nfeatures\\template-editor\\wysiwyg\\ElementPanels.tsx\r\nfeatures\\template-editor\\wysiwyg\\ElementRenderer.tsx\r\nfeatures\\template-editor\\wysiwyg\\LayersPanel.tsx\r\nfeatures\\template-editor\\wysiwyg\\PropertiesPanel.tsx\r\nfeatures\\template-editor\\wysiwyg\\Ruler.tsx\r\nfeatures\\template-editor\\wysiwyg\\sync.ts\r\nfeatures\\template-editor\\wysiwyg\\sync.utils.ts\r\nfeatures\\template-editor\\wysiwyg\\useCanvasDrop.ts\r\nfeatures\\template-editor\\wysiwyg\\useCanvasKeyboard.ts\r\nfeatures\\template-editor\\wysiwyg\\elements\\CircleElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\ContainerElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\FieldBadge.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\IconElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\ImageElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\LineElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\QrElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\ShapeElement.tsx\r\nfeatures\\template-editor\\wysiwyg\\elements\\TextElement.tsx\r\nfeatures\\template-wizard\\applyTheme.ts\r\nfeatures\\template-wizard\\TemplateWizardDialog.tsx\r\nfeatures\\welcome\\EditorPage.tsx\r\nfeatures\\welcome\\WelcomePage.tsx\r\nshared\\components\r\nshared\\hooks\r\nshared\\templates\r\nshared\\types\r\nshared\\util",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "result",
+        "auto"
+      ],
+      "timestamp": 1779552635430,
+      "metadata": {},
+      "id": "mem_1779552635430_12",
+      "frequency": 1,
+      "lastAccessed": 1779552635430,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
     }
   ],
   "wings": [],
