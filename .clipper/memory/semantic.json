@@ -38,6 +38,146 @@
       "wing": "default",
       "room": "default",
       "drawer": "memory"
+    },
+    {
+      "content": "digest:src/App.tsx\n180 lines\nExports: SessionState, getSystemTheme, collectSession, editor, deck, ui, projectPath, openProject, theme, cancelled, check, session",
+      "type": "finding",
+      "tags": [
+        "file-digest",
+        "auto"
+      ],
+      "timestamp": 1779552593589,
+      "metadata": {},
+      "id": "mem_1779552593589_3",
+      "frequency": 1,
+      "lastAccessed": 1779552593589,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "digest:src/App.css\n584 lines\nExports: margin, padding, height, background, color, overflow, width, border, transition, transform, outline, cursor",
+      "type": "finding",
+      "tags": [
+        "file-digest",
+        "auto"
+      ],
+      "timestamp": 1779552593592,
+      "metadata": {},
+      "id": "mem_1779552593592_4",
+      "frequency": 1,
+      "lastAccessed": 1779552593592,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "digest:src/main.tsx\n11 lines\nExports: ",
+      "type": "finding",
+      "tags": [
+        "file-digest",
+        "auto"
+      ],
+      "timestamp": 1779552593593,
+      "metadata": {},
+      "id": "mem_1779552593593_5",
+      "frequency": 2,
+      "lastAccessed": 1779552598208,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "digest:package.json\n49 lines\nExports: ",
+      "type": "finding",
+      "tags": [
+        "file-digest",
+        "auto"
+      ],
+      "timestamp": 1779552598203,
+      "metadata": {},
+      "id": "mem_1779552598203_6",
+      "frequency": 1,
+      "lastAccessed": 1779552598204,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Successful shell command: Get-ChildItem -Path src -Recurse -Include *.tsx,*.ts,*.css | Select-Object FullName\nOutput summary: \r\nFullName                                                                                                              \r\n--------                                                                                                              \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\fe",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "success",
+        "auto"
+      ],
+      "timestamp": 1779552617077,
+      "metadata": {},
+      "id": "mem_1779552617077_7",
+      "frequency": 1,
+      "lastAccessed": 1779552617077,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Full output of shell \"Get-ChildItem -Path src -Recurse -Include *.tsx,*.ts,*.css | Select-Object FullN\":\n\r\nFullName                                                                                                              \r\n--------                                                                                                              \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardBackgroundGenerator.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardSymbolGenerator.ts    \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardTextboxGenerator.ts   \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\colorGenerator.ts         \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\index.ts                  \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\AssetGeneratorDialog.tsx             \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\index.ts                             \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\assets\\AssetManager.tsx                              \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\assets\\AssetPickerDialog.tsx                         \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\data-editor\\DataEditor.tsx                           \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\export\\ExportPage.tsx                                \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\export\\exportUtils.ts                                \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\overview\\OverviewPage.tsx                            \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\preview\\CardRenderer.ts                              \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\preview\\PreviewPanel.tsx                             \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\project\\ProjectSidebar.tsx                           \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\settings\\SettingsDialog.tsx                          \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\settings\\SettingsPage.tsx                            \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\CardTable.tsx                              \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\ContextMenu.tsx                            \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\DeckZone.tsx                               \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\SimulatorPage.tsx                          \r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\simulatorStore.ts                          ",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "result",
+        "auto"
+      ],
+      "timestamp": 1779552617079,
+      "metadata": {},
+      "id": "mem_1779552617079_8",
+      "frequency": 1,
+      "lastAccessed": 1779552617079,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Successful shell command: Get-ChildItem -Path src -Recurse -File | Select-Object -ExpandProperty FullName\nOutput summary: C:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\App.css\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\App.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\main.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\router.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "success",
+        "auto"
+      ],
+      "timestamp": 1779552623352,
+      "metadata": {},
+      "id": "mem_1779552623352_9",
+      "frequency": 1,
+      "lastAccessed": 1779552623352,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
+    },
+    {
+      "content": "Full output of shell \"Get-ChildItem -Path src -Recurse -File | Select-Object -ExpandProperty FullName\":\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\App.css\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\App.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\main.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\router.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\vite-env.d.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\assets\\react.svg\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\AssetGeneratorDialog.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\index.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardBackgroundGenerator.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardSymbolGenerator.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\cardTextboxGenerator.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\colorGenerator.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\asset-generator\\generators\\index.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\assets\\AssetManager.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\assets\\AssetPickerDialog.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\data-editor\\DataEditor.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\export\\ExportPage.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\export\\exportUtils.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\overview\\OverviewPage.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\preview\\CardRenderer.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\preview\\PreviewPanel.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\project\\ProjectSidebar.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\settings\\SettingsDialog.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\settings\\SettingsPage.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\CardTable.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\ContextMenu.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\DeckZone.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\SimulatorPage.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\simulator\\simulatorStore.ts\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\template-editor\\CardBackCodeEditor.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\template-editor\\CardBackEditor.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\features\\template-editor\\CodeEditor.tsx\r\nC:\\Users\\annenskei\\Documents\\GitHub\\Cardy\\cardforge\\src\\fea",
+      "type": "finding",
+      "tags": [
+        "shell",
+        "result",
+        "auto"
+      ],
+      "timestamp": 1779552623354,
+      "metadata": {},
+      "id": "mem_1779552623354_10",
+      "frequency": 1,
+      "lastAccessed": 1779552623354,
+      "projectCount": 1,
+      "wing": "default",
+      "room": "default",
+      "drawer": "memory"
     }
   ],
   "wings": [],
